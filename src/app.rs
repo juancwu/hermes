@@ -1,8 +1,8 @@
-use std::io;
+use std::{collections::HashMap, io};
 
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode, KeyEventKind},
+    crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Alignment, Rect},
     style::Stylize,
     symbols::border,
@@ -11,11 +11,14 @@ use ratatui::{
     Frame,
 };
 
+use crate::api::{self, Collection, HttpMethod};
 use crate::tui;
 
+/// App is the main application process that will update and render as well as store the
+/// application state.
 #[derive(Debug, Default)]
 pub struct App {
-    counter: i32,
+    collection: Collection,
     exit: bool,
 }
 
@@ -41,8 +44,18 @@ impl App {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 match key_event.code {
                     KeyCode::Char('q') => self.exit = true,
-                    KeyCode::Up => self.counter += 1,
-                    KeyCode::Down => self.counter -= 1,
+                    KeyCode::Char('a') => {
+                        let request = api::Request::new(
+                            "Healthcheck".to_string(),
+                            HttpMethod::Get,
+                            "https://konbini.juancwu.dev".to_string(),
+                            None,
+                            None,
+                            HashMap::new(),
+                        );
+                        self.collection.add_request(request);
+                    }
+                    KeyCode::Enter if key_event.modifiers == KeyModifiers::CONTROL => {}
                     _ => {}
                 }
             }
@@ -59,12 +72,19 @@ impl Widget for &App {
             .title(title.alignment(Alignment::Center))
             .border_set(border::THICK);
 
-        let counter_text = Text::from(vec![Line::from(vec![
-            "Value: ".into(),
-            self.counter.to_string().yellow(),
-        ])]);
+        let route_text = if !self.collection.is_empty() {
+            Text::from(
+                self.collection
+                    .iter()
+                    .map(|req| req.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n"),
+            )
+        } else {
+            Text::from("No requests in collection".bold().yellow().to_string())
+        };
 
-        Paragraph::new(counter_text)
+        Paragraph::new(route_text)
             .centered()
             .block(block)
             .render(area, buf);

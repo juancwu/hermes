@@ -3,6 +3,13 @@ name = "hermes"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "hermes"
+
 # On Linux:
 # - Ubuntu, `sudo apt-get install lld clang`
 # - Arch, `sudo pacman -S lld clang`
@@ -10,5 +17,7 @@ edition = "2021"
 rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
 
 [dependencies]
+config = { version = "0.14.0", default-features = false, features = ["yaml"] }
 ratatui = "0.27.0"
 reqwest = { version = "0.12.5", features = ["blocking"] }
+serde = { version = "1.0.204", features = ["derive"] }
