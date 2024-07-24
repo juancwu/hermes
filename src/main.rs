@@ -1,5 +1,3 @@
-#[tokio::main]
-async fn main() -> Result<(), ()> {
-    println!("Hello, world!");
+fn main() -> Result<(), ()> {
     Ok(())
 }
