@@ -10,7 +10,7 @@ pub struct Collection {
 
 impl Collection {
     pub fn new(requests: Vec<Request>) -> Self {
-        Collection { requests }
+        Self { requests }
     }
 
     pub fn add_request(&mut self, route: Request) {
@@ -60,7 +60,7 @@ impl Request {
         body_type: Option<HttpBody>,
         headers: HashMap<String, String>,
     ) -> Self {
-        Request {
+        Self {
             name,
             method,
             url,
