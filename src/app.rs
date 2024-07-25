@@ -10,9 +10,12 @@ use ratatui::{
     Frame,
 };
 
-use crate::api::{Collection, HttpMethod, Request};
 use crate::tui;
 use crate::widgets::input::{Input, InputMode};
+use crate::{
+    api::{Collection, HttpMethod, Request},
+    APP_VERSION,
+};
 
 /// App is the main application process that will update and render as well as store the
 /// application state.
@@ -110,7 +113,7 @@ impl Widget for &App {
         .left_aligned()
         .render(chunks[1], buf);
         Paragraph::new(Text::styled(
-            "Hermes 0.1.0  ",
+            format!("Hermes {} ", APP_VERSION),
             Style::default().fg(tailwind::ORANGE.c300),
         ))
         .right_aligned()
