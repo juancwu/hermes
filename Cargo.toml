@@ -18,6 +18,7 @@ rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
 
 [dependencies]
 config = { version = "0.14.0", default-features = false, features = ["yaml"] }
+derive_setters = "0.1.6"
 ratatui = "0.27.0"
 reqwest = { version = "0.12.5", features = ["blocking"] }
 serde = { version = "1.0.204", features = ["derive"] }

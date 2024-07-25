@@ -5,17 +5,18 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
+    symbols::border,
     text::{Line, Span, Text},
-    widgets::{block::Title, Block, Padding, Paragraph, Widget, Wrap},
+    widgets::{block::Title, Block, Clear, Padding, Paragraph, Widget, Wrap},
     Frame,
 };
 
-use crate::tui;
 use crate::widgets::input::{Input, InputMode};
 use crate::{
     api::{Collection, HttpMethod, Request},
     APP_VERSION,
 };
+use crate::{tui, widgets::popup::Popup};
 
 /// App is the main application process that will update and render as well as store the
 /// application state.
@@ -156,16 +157,24 @@ impl Widget for &App {
 
         Block::bordered().render(request_details_are, buf);
 
-        // if self.open_input_window {
-        //     Paragraph::new(self.input_widget.get_input_as_string())
-        //         .style(match self.input_widget.get_input_mode() {
-        //             InputMode::Insert => Style::default().fg(Color::Yellow),
-        //             InputMode::Normal => Style::default(),
-        //         })
-        //         .centered()
-        //         .render(area, buf);
-        // } else {
-        //     Paragraph::new(route_text).centered().render(area, buf);
-        // }
+        if self.open_input_window {
+            // make the popup dimensions
+            let popup_area = Rect {
+                x: chunks[0].width / 4,
+                y: chunks[0].height / 3,
+                width: chunks[0].width / 2,
+                height: chunks[0].height / 3,
+            };
+            Popup::default()
+                .content(self.input_widget.get_input_as_string())
+                .style(match self.input_widget.get_input_mode() {
+                    InputMode::Insert => Style::default().fg(Color::Yellow),
+                    InputMode::Normal => Style::default(),
+                })
+                .title("New Request")
+                .title_style(Style::default().bold())
+                .border_style(Style::new().light_yellow())
+                .render(popup_area, buf);
+        }
     }
 }
