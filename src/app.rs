@@ -1,13 +1,12 @@
-use std::{char, collections::HashMap, io};
+use std::{collections::HashMap, io};
 
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
-    layout::{Alignment, Direction, Layout, Rect},
-    style::{Color, Style, Stylize},
-    symbols::border,
-    text::{Line, Text},
-    widgets::{block::Title, Block, Paragraph, Widget},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{palette::tailwind, Color, Style, Stylize},
+    text::{Line, Span, Text},
+    widgets::{block::Title, Block, Padding, Paragraph, Widget},
     Frame,
 };
 
@@ -96,10 +95,26 @@ impl App {
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Title::from("Hermes");
-        let block = Block::bordered()
-            .title(title.alignment(Alignment::Center))
-            .border_set(border::PLAIN);
+        // split the layout
+        // need one line at the bottom for basic instruction hint and app name
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Length(1)])
+            .split(area);
+
+        // render the app name
+        Paragraph::new(Text::styled(
+            "  <pgUp/pgDn> to scroll, <esc> to cancel, ? for help and q to quit.",
+            Style::default().fg(tailwind::SKY.c400),
+        ))
+        .left_aligned()
+        .render(chunks[1], buf);
+        Paragraph::new(Text::styled(
+            "Hermes 0.1.0  ",
+            Style::default().fg(tailwind::ORANGE.c300),
+        ))
+        .right_aligned()
+        .render(chunks[1], buf);
 
         let route_text = if !self.collection.is_empty() {
             Text::from(
@@ -114,20 +129,15 @@ impl Widget for &App {
         };
 
         if self.open_input_window {
-            let block = Block::bordered().border_set(border::THICK).title("URL");
             Paragraph::new(self.input_widget.get_input_as_string())
                 .style(match self.input_widget.get_input_mode() {
                     InputMode::Insert => Style::default().fg(Color::Yellow),
                     InputMode::Normal => Style::default(),
                 })
                 .centered()
-                .block(block)
                 .render(area, buf);
         } else {
-            Paragraph::new(route_text)
-                .centered()
-                .block(block)
-                .render(area, buf);
+            Paragraph::new(route_text).centered().render(area, buf);
         }
     }
 }
