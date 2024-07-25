@@ -4,7 +4,7 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{palette::tailwind, Color, Style, Stylize},
+    style::{Color, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{block::Title, Block, Padding, Paragraph, Widget, Wrap},
     Frame,
@@ -108,13 +108,13 @@ impl Widget for &App {
         // render the app name
         Paragraph::new(Text::styled(
             "  <pgUp/pgDn> to scroll, <esc> to cancel, ? for help and q to quit.",
-            Style::default().fg(tailwind::SKY.c400),
+            Style::default().fg(Color::LightBlue),
         ))
         .left_aligned()
         .render(chunks[1], buf);
         Paragraph::new(Text::styled(
             format!("Hermes {} ", APP_VERSION),
-            Style::default().fg(tailwind::ORANGE.c300),
+            Style::default().fg(Color::LightYellow),
         ))
         .right_aligned()
         .render(chunks[1], buf);
