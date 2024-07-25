@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{palette::tailwind, Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{block::Title, Block, Padding, Paragraph, Widget},
+    widgets::{block::Title, Block, Padding, Paragraph, Widget, Wrap},
     Frame,
 };
 
@@ -119,28 +119,53 @@ impl Widget for &App {
         .right_aligned()
         .render(chunks[1], buf);
 
-        let route_text = if !self.collection.is_empty() {
-            Text::from(
+        // main area layout
+        // split into two main columns
+        // column 1: contains a list of the collections that have been read into memory along with
+        // all the requests in the collection
+        // column 2: shows the details of a selected request in the collection. Details explained
+        // in comments down below when column 2 is being rendered.
+        let main_area_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(20),
+                Constraint::Length(1),
+                Constraint::Percentage(80),
+            ])
+            .split(chunks[0]);
+        let side_area = main_area_chunks[0];
+        let request_details_are = main_area_chunks[2];
+
+        let block = Block::bordered();
+        if !self.collection.is_empty() {
+            Paragraph::new(
                 self.collection
                     .iter()
-                    .map(|req| req.to_string())
-                    .collect::<Vec<String>>()
-                    .join("\n"),
+                    .map(|request| Line::from(request.to_string()))
+                    .collect::<Vec<Line>>(),
             )
+            .block(block)
+            .wrap(Wrap { trim: true })
+            .render(side_area, buf);
         } else {
-            Text::from("No requests in collection".bold().yellow().to_string())
+            Paragraph::new("No requests in collection".bold().yellow().to_string())
+                .wrap(Wrap { trim: true })
+                .block(block)
+                .render(side_area, buf);
         };
 
-        if self.open_input_window {
-            Paragraph::new(self.input_widget.get_input_as_string())
-                .style(match self.input_widget.get_input_mode() {
-                    InputMode::Insert => Style::default().fg(Color::Yellow),
-                    InputMode::Normal => Style::default(),
-                })
-                .centered()
-                .render(area, buf);
-        } else {
-            Paragraph::new(route_text).centered().render(area, buf);
-        }
+        Block::bordered().render(request_details_are, buf);
+
+        // if self.open_input_window {
+        //     Paragraph::new(self.input_widget.get_input_as_string())
+        //         .style(match self.input_widget.get_input_mode() {
+        //             InputMode::Insert => Style::default().fg(Color::Yellow),
+        //             InputMode::Normal => Style::default(),
+        //         })
+        //         .centered()
+        //         .render(area, buf);
+        // } else {
+        //     Paragraph::new(route_text).centered().render(area, buf);
+        // }
     }
 }
