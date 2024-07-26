@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{block::Title, Block, Clear, Padding, Paragraph, Widget, Wrap},
+    widgets::{Block, Clear, Padding, Paragraph, Widget, Wrap},
     Frame,
 };
 
@@ -26,8 +26,9 @@ use crate::{
 pub struct App {
     collection: Collection,
     input_widget: Input,
-    open_input_window: bool,
-    url: String,
+    open_new_request_popup: bool,
+    new_request_step: u8,
+
     exit: bool,
 }
 
@@ -55,12 +56,12 @@ impl App {
             // Make sure to check if key event is 'press' since crossterm also emits 'release' and
             // 'repeat' events.
             Event::Key(key_event)
-                if key_event.kind == KeyEventKind::Press && !self.open_input_window =>
+                if key_event.kind == KeyEventKind::Press && !self.open_new_request_popup =>
             {
                 match key_event.code {
                     KeyCode::Char('q') => self.exit = true,
                     KeyCode::Char('a') => {
-                        self.open_input_window = true;
+                        self.open_new_request_popup = true;
                         self.input_widget.change_mode(InputMode::Insert);
                     }
                     KeyCode::Enter if key_event.modifiers == KeyModifiers::CONTROL => {}
@@ -68,7 +69,7 @@ impl App {
                 }
             }
             Event::Key(key_event)
-                if key_event.kind == KeyEventKind::Press && self.open_input_window =>
+                if key_event.kind == KeyEventKind::Press && self.open_new_request_popup =>
             {
                 match key_event.code {
                     KeyCode::Char(ch) => {
@@ -88,7 +89,7 @@ impl App {
                         );
                         self.collection.add_request(request);
                         self.input_widget.reset();
-                        self.open_input_window = false;
+                        self.open_new_request_popup = false;
                     }
                     _ => {}
                 }
@@ -139,7 +140,7 @@ impl Widget for &App {
         let side_area = main_area_chunks[0];
         let request_details_are = main_area_chunks[2];
 
-        let block = Block::bordered();
+        let block = Block::bordered().title(self.collection.name());
         if !self.collection.is_empty() {
             Paragraph::new(
                 self.collection
@@ -159,13 +160,13 @@ impl Widget for &App {
 
         Block::bordered().render(request_details_are, buf);
 
-        if self.open_input_window {
+        if self.open_new_request_popup {
             // make the popup dimensions
             let popup_area = Rect {
                 x: chunks[0].width / 4,
-                y: chunks[0].height / 3,
+                y: chunks[0].height / 4,
                 width: chunks[0].width / 2,
-                height: chunks[0].height / 3,
+                height: chunks[0].height / 2,
             };
             Popup::default()
                 .content(self.input_widget.get_input_as_string())

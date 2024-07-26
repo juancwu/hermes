@@ -3,7 +3,7 @@ use std::fmt;
 use std::slice::{Iter, IterMut};
 
 /// Collection represents a collection of Routes and/or nested Collections with Environments.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Collection {
     requests: Vec<Request>,
     name: String,
@@ -40,6 +40,15 @@ impl IntoIterator for Collection {
     type IntoIter = std::vec::IntoIter<Self::Item>;
     fn into_iter(self) -> Self::IntoIter {
         self.requests.into_iter()
+    }
+}
+
+impl Default for Collection {
+    fn default() -> Self {
+        Collection {
+            name: String::from("Untitled Collection"),
+            requests: vec![],
+        }
     }
 }
 
