@@ -3,18 +3,16 @@ use std::{collections::HashMap, io};
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
-    text::{Line, Span, Text},
-    widgets::{Block, Clear, Padding, Paragraph, Widget, Wrap},
+    symbols::border,
+    text::{Line, Text},
+    widgets::{Block, Clear, Paragraph, Widget, Wrap},
     Frame,
 };
 
 use crate::tui;
-use crate::widgets::{
-    input::{Input, InputMode},
-    popup::Popup,
-};
+use crate::widgets::input::{Input, InputMode};
 use crate::{
     api::{Collection, HttpMethod, Request},
     APP_VERSION,
@@ -28,6 +26,7 @@ pub struct App {
     input_widget: Input,
     open_new_request_popup: bool,
     new_request_step: u8,
+    new_request_input_strings: Vec<String>,
 
     exit: bool,
 }
@@ -79,17 +78,21 @@ impl App {
                         self.input_widget.delete_character();
                     }
                     KeyCode::Enter => {
-                        let request = Request::new(
-                            "test".to_string(),
-                            HttpMethod::Get,
-                            self.input_widget.get_input_as_string(),
-                            None,
-                            None,
-                            HashMap::new(),
-                        );
-                        self.collection.add_request(request);
-                        self.input_widget.reset();
-                        self.open_new_request_popup = false;
+                        if self.is_end_of_new_request() {
+                            let request = Request::new(
+                                "test".to_string(),
+                                HttpMethod::Get,
+                                self.input_widget.get_input_as_string(),
+                                None,
+                                None,
+                                HashMap::new(),
+                            );
+                            self.collection.add_request(request);
+                            self.input_widget.reset();
+                            self.open_new_request_popup = false;
+                        } else {
+                            // if not end, then we move onto the next field
+                        }
                     }
                     _ => {}
                 }
@@ -97,6 +100,56 @@ impl App {
             _ => {}
         };
         Ok(())
+    }
+
+    /// Checks whether all the fields for a new request has been filled.
+    /// For now we are just checking of empty fields but should also check/validate the inputs?
+    fn is_end_of_new_request(&self) -> bool {
+        let mut is_end = true;
+        for s in self.new_request_input_strings.iter() {
+            if s.is_empty() {
+                is_end = false;
+                break;
+            }
+        }
+        is_end
+    }
+
+    fn render_new_request_popup(&self, area: Rect, buf: &mut Buffer) {
+        let height_per_block = 3;
+        let num_of_blocks = 3;
+        let popup_height = height_per_block * num_of_blocks;
+        // make the popup dimensions
+        let popup_area = Rect {
+            x: area.width / 4,
+            y: area.height / 2 - popup_height / 2,
+            width: area.width / 2,
+            height: popup_height,
+        };
+        Clear.render(popup_area, buf);
+
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(3), Constraint::Length(3)])
+            .split(popup_area);
+
+        Block::bordered().title("Name").render(chunks[0], buf);
+
+        Paragraph::new(self.input_widget.get_input_as_string())
+            .wrap(Wrap { trim: true })
+            .block(Block::bordered().border_set(border::PLAIN).title("URL"))
+            .render(chunks[1], buf);
+
+        // Popup::default()
+        //     .content(self.input_widget.get_input_as_string())
+        //     .style(match self.input_widget.get_input_mode() {
+        //         InputMode::Insert => Style::default().fg(Color::Yellow),
+        //         InputMode::Normal => Style::default(),
+        //     })
+        //     .title("New Request")
+        //     .title_style(Style::default().bold())
+        //     .border_style(Style::new().light_yellow())
+        //     .render(area, buf);
     }
 }
 
@@ -138,7 +191,7 @@ impl Widget for &App {
             ])
             .split(chunks[0]);
         let side_area = main_area_chunks[0];
-        let request_details_are = main_area_chunks[2];
+        let request_details_area = main_area_chunks[2];
 
         let block = Block::bordered().title(self.collection.name());
         if !self.collection.is_empty() {
@@ -158,26 +211,11 @@ impl Widget for &App {
                 .render(side_area, buf);
         };
 
-        Block::bordered().render(request_details_are, buf);
+        Block::bordered().render(request_details_area, buf);
 
         if self.open_new_request_popup {
-            // make the popup dimensions
-            let popup_area = Rect {
-                x: chunks[0].width / 4,
-                y: chunks[0].height / 4,
-                width: chunks[0].width / 2,
-                height: chunks[0].height / 2,
-            };
-            Popup::default()
-                .content(self.input_widget.get_input_as_string())
-                .style(match self.input_widget.get_input_mode() {
-                    InputMode::Insert => Style::default().fg(Color::Yellow),
-                    InputMode::Normal => Style::default(),
-                })
-                .title("New Request")
-                .title_style(Style::default().bold())
-                .border_style(Style::new().light_yellow())
-                .render(popup_area, buf);
+            // pass in global area to center the popup.
+            self.render_new_request_popup(area, buf)
         }
     }
 }
