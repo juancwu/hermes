@@ -5,18 +5,20 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
-    symbols::border,
     text::{Line, Span, Text},
     widgets::{block::Title, Block, Clear, Padding, Paragraph, Widget, Wrap},
     Frame,
 };
 
-use crate::widgets::input::{Input, InputMode};
+use crate::tui;
+use crate::widgets::{
+    input::{Input, InputMode},
+    popup::Popup,
+};
 use crate::{
     api::{Collection, HttpMethod, Request},
     APP_VERSION,
 };
-use crate::{tui, widgets::popup::Popup};
 
 /// App is the main application process that will update and render as well as store the
 /// application state.
