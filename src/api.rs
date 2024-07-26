@@ -6,11 +6,12 @@ use std::slice::{Iter, IterMut};
 #[derive(Debug, Clone, Default)]
 pub struct Collection {
     requests: Vec<Request>,
+    name: String,
 }
 
 impl Collection {
-    pub fn new(requests: Vec<Request>) -> Self {
-        Self { requests }
+    pub fn new(name: String, requests: Vec<Request>) -> Self {
+        Self { requests, name }
     }
 
     pub fn add_request(&mut self, route: Request) {
@@ -19,6 +20,10 @@ impl Collection {
 
     pub fn is_empty(&self) -> bool {
         return self.requests.is_empty();
+    }
+
+    pub fn name(&self) -> String {
+        self.name.clone()
     }
 
     pub fn iter(&self) -> Iter<'_, Request> {
