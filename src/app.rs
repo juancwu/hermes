@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, vec};
 
 use ratatui::{
     buffer::Buffer,
@@ -20,15 +20,32 @@ use crate::{
 
 /// App is the main application process that will update and render as well as store the
 /// application state.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct App {
     collection: Collection,
     input_widget: Input,
     open_new_request_popup: bool,
-    new_request_step: u8,
-    new_request_input_strings: Vec<String>,
+    new_request_step: usize,
+    new_request_input_strings_hashmap: HashMap<usize, String>,
 
     exit: bool,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        let mut new_request_hashmap = HashMap::<usize, String>::new();
+        new_request_hashmap.insert(0, String::new());
+        new_request_hashmap.insert(1, String::new());
+        new_request_hashmap.insert(2, String::new());
+        App {
+            collection: Collection::default(),
+            input_widget: Input::default(),
+            open_new_request_popup: false,
+            new_request_step: 0,
+            new_request_input_strings_hashmap: new_request_hashmap,
+            exit: false,
+        }
+    }
 }
 
 impl App {
@@ -77,6 +94,10 @@ impl App {
                     KeyCode::Backspace => {
                         self.input_widget.delete_character();
                     }
+                    KeyCode::Esc => {
+                        self.input_widget.reset();
+                        self.open_new_request_popup = false;
+                    }
                     KeyCode::Enter => {
                         if self.is_end_of_new_request() {
                             let request = Request::new(
@@ -92,6 +113,7 @@ impl App {
                             self.open_new_request_popup = false;
                         } else {
                             // if not end, then we move onto the next field
+                            self.save_and_move_to_next_new_request_input();
                         }
                     }
                     _ => {}
@@ -106,13 +128,25 @@ impl App {
     /// For now we are just checking of empty fields but should also check/validate the inputs?
     fn is_end_of_new_request(&self) -> bool {
         let mut is_end = true;
-        for s in self.new_request_input_strings.iter() {
-            if s.is_empty() {
+        for (_step, input_string) in self.new_request_input_strings_hashmap.iter() {
+            if input_string.is_empty() {
                 is_end = false;
                 break;
             }
         }
         is_end
+    }
+
+    /// Will save the current input String into the right spot in the input hashmap and move the
+    /// step to the next corresponding input.
+    ///
+    /// IMPORTANT: this method will clear out the current input widget buffer.
+    fn save_and_move_to_next_new_request_input(&mut self) {
+        let input_string = self.input_widget.get_input_as_string();
+        self.new_request_input_strings_hashmap
+            .insert(self.new_request_step, input_string);
+        self.new_request_step = (self.new_request_step + 1) % 3;
+        self.input_widget.reset();
     }
 
     fn render_new_request_popup(&self, area: Rect, buf: &mut Buffer) {
@@ -130,15 +164,39 @@ impl App {
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Length(3)])
+            // constraints are explicitly defined like this to avoid heap allocation
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Length(3),
+                Constraint::Length(3),
+            ])
             .split(popup_area);
 
-        Block::bordered().title("Name").render(chunks[0], buf);
+        let block_names = vec!["NAME", "METHOD", "URL"];
 
+        // render all the saved input strings to display them, later we will render our current
+        // input
+        for (step, input_string) in self.new_request_input_strings_hashmap.iter() {
+            Paragraph::new(input_string.clone())
+                .wrap(Wrap { trim: true })
+                .block(
+                    Block::bordered()
+                        .border_set(border::PLAIN)
+                        .title(block_names[*step]),
+                )
+                .render(chunks[*step], buf);
+        }
+
+        // now we will clear the chunk that and override the part where the active input is
+        Clear.render(chunks[self.new_request_step], buf);
         Paragraph::new(self.input_widget.get_input_as_string())
             .wrap(Wrap { trim: true })
-            .block(Block::bordered().border_set(border::PLAIN).title("URL"))
-            .render(chunks[1], buf);
+            .block(
+                Block::bordered()
+                    .border_set(border::PLAIN)
+                    .title(block_names[self.new_request_step]),
+            )
+            .render(chunks[self.new_request_step], buf);
 
         // Popup::default()
         //     .content(self.input_widget.get_input_as_string())
