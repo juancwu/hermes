@@ -3,7 +3,7 @@ use std::{collections::HashMap, io};
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{self, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Text},
     widgets::{Block, Clear, Paragraph, Widget, Wrap},
@@ -25,7 +25,7 @@ pub struct App {
     open_new_request_popup: bool,
     new_request_step: usize,
     new_request_name: Input,
-    new_request_method: Input,
+    new_request_method: HttpMethod,
     new_request_url: Input,
 
     exit: bool,
@@ -42,7 +42,7 @@ impl Default for App {
             open_new_request_popup: false,
             new_request_step: 0,
             new_request_name: Input::default(),
-            new_request_method: Input::default(),
+            new_request_method: HttpMethod::Get,
             new_request_url: Input::default(),
             exit: false,
         }
@@ -86,19 +86,18 @@ impl App {
                 match key_event.code {
                     KeyCode::Char(ch) => match self.new_request_step {
                         0 => self.new_request_name.enter_character(ch),
-                        1 => self.new_request_method.enter_character(ch),
+                        1 => {}
                         2 => self.new_request_url.enter_character(ch),
                         _ => {}
                     },
                     KeyCode::Backspace => match self.new_request_step {
                         0 => self.new_request_name.delete_character(),
-                        1 => self.new_request_method.delete_character(),
+                        1 => {}
                         2 => self.new_request_url.delete_character(),
                         _ => {}
                     },
                     KeyCode::Esc => {
                         self.new_request_name.reset();
-                        self.new_request_method.reset();
                         self.new_request_url.reset();
                         self.open_new_request_popup = false;
                         self.new_request_step = 0;
@@ -108,18 +107,9 @@ impl App {
                     }
                     KeyCode::Enter => {
                         if self.is_end_of_new_request() {
-                            let request_method_string =
-                                self.new_request_method.get_string().to_lowercase();
-                            let request_method = if request_method_string == "get" {
-                                HttpMethod::Get
-                            } else if request_method_string == "" {
-                                HttpMethod::Post
-                            } else {
-                                HttpMethod::Delete
-                            };
                             let request = Request::new(
                                 self.new_request_name.get_string(),
-                                request_method,
+                                HttpMethod::Get,
                                 self.new_request_url.get_string(),
                                 None,
                                 None,
@@ -143,9 +133,7 @@ impl App {
     /// Checks whether all the fields for a new request has been filled.
     /// For now we are just checking of empty fields but should also check/validate the inputs?
     fn is_end_of_new_request(&self) -> bool {
-        !self.new_request_name.is_empty()
-            && !self.new_request_method.is_empty()
-            && !self.new_request_url.is_empty()
+        !self.new_request_name.is_empty() && !self.new_request_url.is_empty()
     }
 
     /// Will save the current input String into the right spot in the input hashmap and move the
@@ -158,7 +146,7 @@ impl App {
 
     fn render_new_request_popup(&self, area: Rect, buf: &mut Buffer) {
         let height_per_block = 3;
-        let num_of_blocks = 3;
+        let num_of_blocks = 2;
         let popup_height = height_per_block * num_of_blocks;
         // make the popup dimensions
         let popup_area = Rect {
@@ -172,22 +160,50 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             // constraints are explicitly defined like this to avoid heap allocation
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(3),
-            ])
+            .constraints([Constraint::Length(3), Constraint::Length(3)])
             .split(popup_area);
 
         Paragraph::new(self.new_request_name.get_string())
-            .block(Block::bordered().title("NAME"))
+            .block(
+                Block::bordered()
+                    .title("Name")
+                    .style(if self.new_request_step == 0 {
+                        Style::new().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    }),
+            )
             .render(chunks[0], buf);
-        Paragraph::new(self.new_request_method.get_string())
-            .block(Block::bordered().title("METHOD"))
-            .render(chunks[1], buf);
+        // divide second line into two for method and url
+        let url_chunks = layout::Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                layout::Constraint::Percentage(20),
+                layout::Constraint::Percentage(80),
+            ])
+            .split(chunks[1]);
+        Paragraph::new(self.new_request_method.to_str())
+            .block(
+                Block::bordered()
+                    .title("Method")
+                    .style(if self.new_request_step == 1 {
+                        Style::new().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    }),
+            )
+            .render(url_chunks[0], buf);
         Paragraph::new(self.new_request_url.get_string())
-            .block(Block::bordered().title("URL"))
-            .render(chunks[2], buf);
+            .block(
+                Block::bordered()
+                    .title("Url")
+                    .style(if self.new_request_step == 2 {
+                        Style::new().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    }),
+            )
+            .render(url_chunks[1], buf);
     }
 }
 

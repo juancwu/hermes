@@ -100,6 +100,19 @@ pub enum HttpMethod {
     Option,
 }
 
+impl HttpMethod {
+    pub fn to_str(&self) -> &str {
+        match self {
+            HttpMethod::Get => "GET",
+            HttpMethod::Post => "POST",
+            HttpMethod::Put => "PUT",
+            HttpMethod::Patch => "PATCH",
+            HttpMethod::Delete => "DELETE",
+            HttpMethod::Option => "OPTION",
+        }
+    }
+}
+
 impl fmt::Display for HttpMethod {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let method = match self {
