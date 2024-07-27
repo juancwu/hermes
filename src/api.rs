@@ -101,6 +101,28 @@ pub enum HttpMethod {
 }
 
 impl HttpMethod {
+    pub fn next(&self) -> HttpMethod {
+        match self {
+            HttpMethod::Get => HttpMethod::Post,
+            HttpMethod::Post => HttpMethod::Put,
+            HttpMethod::Put => HttpMethod::Patch,
+            HttpMethod::Patch => HttpMethod::Delete,
+            HttpMethod::Delete => HttpMethod::Option,
+            HttpMethod::Option => HttpMethod::Get,
+        }
+    }
+
+    pub fn prev(&self) -> HttpMethod {
+        match self {
+            HttpMethod::Get => HttpMethod::Option,
+            HttpMethod::Post => HttpMethod::Get,
+            HttpMethod::Put => HttpMethod::Post,
+            HttpMethod::Patch => HttpMethod::Put,
+            HttpMethod::Delete => HttpMethod::Patch,
+            HttpMethod::Option => HttpMethod::Delete,
+        }
+    }
+
     pub fn to_str(&self) -> &str {
         match self {
             HttpMethod::Get => "GET",

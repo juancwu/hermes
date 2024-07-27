@@ -86,13 +86,16 @@ impl App {
                 match key_event.code {
                     KeyCode::Char(ch) => match self.new_request_step {
                         0 => self.new_request_name.enter_character(ch),
-                        1 => {}
+                        1 => match ch {
+                            'j' => self.new_request_method = self.new_request_method.next(),
+                            'k' => self.new_request_method = self.new_request_method.prev(),
+                            _ => {}
+                        },
                         2 => self.new_request_url.enter_character(ch),
                         _ => {}
                     },
                     KeyCode::Backspace => match self.new_request_step {
                         0 => self.new_request_name.delete_character(),
-                        1 => {}
                         2 => self.new_request_url.delete_character(),
                         _ => {}
                     },
@@ -147,7 +150,8 @@ impl App {
     fn render_new_request_popup(&self, area: Rect, buf: &mut Buffer) {
         let height_per_block = 3;
         let num_of_blocks = 2;
-        let popup_height = height_per_block * num_of_blocks;
+        // account the last line for instructions
+        let popup_height = height_per_block * num_of_blocks + 1;
         // make the popup dimensions
         let popup_area = Rect {
             x: area.width / 4,
@@ -160,8 +164,29 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             // constraints are explicitly defined like this to avoid heap allocation
-            .constraints([Constraint::Length(3), Constraint::Length(3)])
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Length(3),
+                Constraint::Length(1),
+            ])
             .split(popup_area);
+
+        if self.new_request_step == 1 {
+            Paragraph::new("Use j/k to change method.")
+                .style(Style::new().fg(Color::LightBlue))
+                .left_aligned()
+                .render(chunks[2], buf);
+        } else {
+            Paragraph::new("Start typing.")
+                .style(Style::new().fg(Color::LightBlue))
+                .left_aligned()
+                .render(chunks[2], buf);
+        }
+
+        Paragraph::new("<esc> to cancel.")
+            .style(Style::new().fg(Color::LightBlue))
+            .right_aligned()
+            .render(chunks[2], buf);
 
         Paragraph::new(self.new_request_name.get_string())
             .block(
