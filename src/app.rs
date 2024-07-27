@@ -176,7 +176,7 @@ impl App {
                         if self.is_end_of_new_request() {
                             let request = Request::new(
                                 self.new_request_name.get_string(),
-                                HttpMethod::Get,
+                                self.new_request_method,
                                 self.new_request_url.get_string(),
                                 None,
                                 None,
