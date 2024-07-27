@@ -41,6 +41,13 @@ impl Input {
         self.input.clone()
     }
 
+    pub fn get_cursor_index_u16(&self) -> u16 {
+        match u16::try_from(self.cursor_index) {
+            Ok(v) => v,
+            Err(_) => 0,
+        }
+    }
+
     /// Reset the states of the input widget
     pub fn reset(&mut self) {
         self.input.clear();

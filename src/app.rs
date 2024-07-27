@@ -60,7 +60,71 @@ impl App {
 
     /// Render the view for the model
     fn view(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.size());
+        let area = frame.size();
+        // split the layout
+        // need one line at the bottom for basic instruction hint and app name
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Length(1)])
+            .split(area);
+
+        // render the app name
+        let global_instructions = Paragraph::new(Text::styled(
+            "  <pgUp/pgDn> to scroll, <esc> to cancel, ? for help and q to quit.",
+            Style::default().fg(Color::LightBlue),
+        ))
+        .left_aligned();
+        frame.render_widget(global_instructions, chunks[1]);
+        // .render(chunks[1], buf);
+        let app_name = Paragraph::new(Text::styled(
+            format!("Hermes {} ", APP_VERSION),
+            Style::default().fg(Color::LightYellow),
+        ))
+        .right_aligned();
+        frame.render_widget(app_name, chunks[1]);
+
+        // main area layout
+        // split into two main columns
+        // column 1: contains a list of the collections that have been read into memory along with
+        // all the requests in the collection
+        // column 2: shows the details of a selected request in the collection. Details explained
+        // in comments down below when column 2 is being rendered.
+        let main_area_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(20),
+                Constraint::Length(1),
+                Constraint::Percentage(80),
+            ])
+            .split(chunks[0]);
+        let side_area = main_area_chunks[0];
+        let request_details_area = main_area_chunks[2];
+
+        let block = Block::bordered().title(self.collection.name());
+        if !self.collection.is_empty() {
+            let requests = Paragraph::new(
+                self.collection
+                    .iter()
+                    .map(|request| Line::from(request.to_string()))
+                    .collect::<Vec<Line>>(),
+            )
+            .block(block)
+            .wrap(Wrap { trim: true });
+            frame.render_widget(requests, side_area);
+        } else {
+            let no_requests =
+                Paragraph::new("No requests in collection".bold().yellow().to_string())
+                    .wrap(Wrap { trim: true })
+                    .block(block);
+            frame.render_widget(no_requests, side_area);
+        };
+
+        frame.render_widget(Block::bordered(), request_details_area);
+
+        if self.open_new_request_popup {
+            // pass in global area to center the popup.
+            self.render_new_request_popup(frame);
+        }
     }
 
     /// Update the state of the model
@@ -147,7 +211,8 @@ impl App {
         self.new_request_step = (self.new_request_step + 1) % 3;
     }
 
-    fn render_new_request_popup(&self, area: Rect, buf: &mut Buffer) {
+    fn render_new_request_popup(&self, frame: &mut Frame) {
+        let area = frame.size();
         let height_per_block = 3;
         let num_of_blocks = 2;
         // account the last line for instructions
@@ -159,7 +224,7 @@ impl App {
             width: area.width / 2,
             height: popup_height,
         };
-        Clear.render(popup_area, buf);
+        frame.render_widget(Clear, popup_area);
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -171,34 +236,32 @@ impl App {
             ])
             .split(popup_area);
 
-        if self.new_request_step == 1 {
+        let instructions = if self.new_request_step == 1 {
             Paragraph::new("Use j/k to change method.")
                 .style(Style::new().fg(Color::LightBlue))
                 .left_aligned()
-                .render(chunks[2], buf);
         } else {
             Paragraph::new("Start typing.")
                 .style(Style::new().fg(Color::LightBlue))
                 .left_aligned()
-                .render(chunks[2], buf);
-        }
+        };
+        frame.render_widget(instructions, chunks[2]);
 
-        Paragraph::new("<esc> to cancel.")
+        let instructions = Paragraph::new("<esc> to cancel.")
             .style(Style::new().fg(Color::LightBlue))
-            .right_aligned()
-            .render(chunks[2], buf);
+            .right_aligned();
+        frame.render_widget(instructions, chunks[2]);
 
-        Paragraph::new(self.new_request_name.get_string())
-            .block(
-                Block::bordered()
-                    .title("Name")
-                    .style(if self.new_request_step == 0 {
-                        Style::new().fg(Color::Yellow)
-                    } else {
-                        Style::default()
-                    }),
-            )
-            .render(chunks[0], buf);
+        let request_name = Paragraph::new(self.new_request_name.get_string()).block(
+            Block::bordered()
+                .title("Name")
+                .style(if self.new_request_step == 0 {
+                    Style::new().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }),
+        );
+        frame.render_widget(request_name, chunks[0]);
         // divide second line into two for method and url
         let url_chunks = layout::Layout::default()
             .direction(Direction::Horizontal)
@@ -207,94 +270,38 @@ impl App {
                 layout::Constraint::Percentage(80),
             ])
             .split(chunks[1]);
-        Paragraph::new(self.new_request_method.to_str())
-            .block(
-                Block::bordered()
-                    .title("Method")
-                    .style(if self.new_request_step == 1 {
-                        Style::new().fg(Color::Yellow)
-                    } else {
-                        Style::default()
-                    }),
-            )
-            .render(url_chunks[0], buf);
-        Paragraph::new(self.new_request_url.get_string())
-            .block(
-                Block::bordered()
-                    .title("Url")
-                    .style(if self.new_request_step == 2 {
-                        Style::new().fg(Color::Yellow)
-                    } else {
-                        Style::default()
-                    }),
-            )
-            .render(url_chunks[1], buf);
-    }
-}
+        let request_method = Paragraph::new(self.new_request_method.to_str()).block(
+            Block::bordered()
+                .title("Method")
+                .style(if self.new_request_step == 1 {
+                    Style::new().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }),
+        );
+        frame.render_widget(request_method, url_chunks[0]);
+        let request_url = Paragraph::new(self.new_request_url.get_string()).block(
+            Block::bordered()
+                .title("Url")
+                .style(if self.new_request_step == 2 {
+                    Style::new().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }),
+        );
+        frame.render_widget(request_url, url_chunks[1]);
 
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        // split the layout
-        // need one line at the bottom for basic instruction hint and app name
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Length(1)])
-            .split(area);
-
-        // render the app name
-        Paragraph::new(Text::styled(
-            "  <pgUp/pgDn> to scroll, <esc> to cancel, ? for help and q to quit.",
-            Style::default().fg(Color::LightBlue),
-        ))
-        .left_aligned()
-        .render(chunks[1], buf);
-        Paragraph::new(Text::styled(
-            format!("Hermes {} ", APP_VERSION),
-            Style::default().fg(Color::LightYellow),
-        ))
-        .right_aligned()
-        .render(chunks[1], buf);
-
-        // main area layout
-        // split into two main columns
-        // column 1: contains a list of the collections that have been read into memory along with
-        // all the requests in the collection
-        // column 2: shows the details of a selected request in the collection. Details explained
-        // in comments down below when column 2 is being rendered.
-        let main_area_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(20),
-                Constraint::Length(1),
-                Constraint::Percentage(80),
-            ])
-            .split(chunks[0]);
-        let side_area = main_area_chunks[0];
-        let request_details_area = main_area_chunks[2];
-
-        let block = Block::bordered().title(self.collection.name());
-        if !self.collection.is_empty() {
-            Paragraph::new(
-                self.collection
-                    .iter()
-                    .map(|request| Line::from(request.to_string()))
-                    .collect::<Vec<Line>>(),
-            )
-            .block(block)
-            .wrap(Wrap { trim: true })
-            .render(side_area, buf);
-        } else {
-            Paragraph::new("No requests in collection".bold().yellow().to_string())
-                .wrap(Wrap { trim: true })
-                .block(block)
-                .render(side_area, buf);
-        };
-
-        Block::bordered().render(request_details_area, buf);
-
-        if self.open_new_request_popup {
-            // pass in global area to center the popup.
-            self.render_new_request_popup(area, buf)
+        // set cursor
+        match self.new_request_step {
+            0 => frame.set_cursor(
+                chunks[0].x + 1 + self.new_request_name.get_cursor_index_u16(),
+                chunks[0].y + 1,
+            ),
+            2 => frame.set_cursor(
+                url_chunks[1].x + 1 + self.new_request_url.get_cursor_index_u16(),
+                url_chunks[1].y + 1,
+            ),
+            _ => {}
         }
     }
 }
