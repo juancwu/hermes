@@ -17,6 +17,14 @@ use crate::{
 
 use crate::components;
 
+/// This is the height of a single block/line in the new request popup.
+const NEW_REQUEST_HEIGHT_PER_BLOCK: u16 = 3;
+/// This is the number of blocks/lines present in the new request popup.
+const NEW_REQUEST_NUM_OF_BLOCKS: u16 = 2;
+/// This is the total height the new request popup will take. There is an additional 1 to account
+/// for the instruction line which doesn't take up 3 spaces.
+const NEW_REQUEST_POPUP_HEIGHT: u16 = NEW_REQUEST_HEIGHT_PER_BLOCK * NEW_REQUEST_NUM_OF_BLOCKS + 1;
+
 /// App is the main application process that will update and render as well as store the
 /// application state.
 #[derive(Debug)]
@@ -247,16 +255,12 @@ impl App {
 
     fn render_new_request_popup(&self, frame: &mut Frame) {
         let area = frame.size();
-        let height_per_block = 3;
-        let num_of_blocks = 2;
-        // account the last line for instructions
-        let popup_height = height_per_block * num_of_blocks + 1;
         // make the popup dimensions
         let popup_area = Rect {
             x: area.width / 4,
-            y: area.height / 2 - popup_height / 2,
+            y: area.height / 2 - NEW_REQUEST_POPUP_HEIGHT / 2,
             width: area.width / 2,
-            height: popup_height,
+            height: NEW_REQUEST_POPUP_HEIGHT,
         };
         // clear area, avoid things underneath leaked into the popup
         frame.render_widget(Clear, popup_area);
