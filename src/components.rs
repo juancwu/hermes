@@ -201,6 +201,12 @@ impl<T: Clone> List<T> {
             Some(self.items[self.selected_index].clone())
         }
     }
+
+    /// Resets the List by re-selecting the first item and unfocuses.
+    pub fn reset(&mut self) {
+        self.selected_index = 0;
+        self.is_focused = false;
+    }
 }
 
 impl<T: ToString + Clone> Widget for List<T> {

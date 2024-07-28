@@ -5,7 +5,7 @@ use ratatui::{
     layout::{self, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Text},
-    widgets::{Block, Clear, Paragraph, Wrap},
+    widgets::{Block, Clear, Paragraph, Widget, Wrap},
     Frame,
 };
 
@@ -199,6 +199,10 @@ impl App {
                             );
                             self.collection.add_request(request);
                             self.open_new_request_popup = false;
+                            self.new_request_name.reset();
+                            self.new_request_url.reset();
+                            self.new_request_method.reset();
+                            self.new_request_step = 0;
                         } else {
                             // if not end, then we move onto the next field
                             self.move_to_next_new_request_step();
