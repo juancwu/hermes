@@ -1,11 +1,11 @@
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, vec};
 
 use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{self, Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Stylize},
-    text::{Line, Text},
-    widgets::{Block, Clear, Paragraph, Wrap},
+    style::{Color, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, Clear, Paragraph},
     Frame,
 };
 
@@ -115,28 +115,13 @@ impl App {
                 Constraint::Percentage(80),
             ])
             .split(chunks[0]);
+
+        // render the side area with the requests in the current collection.
         let side_area = main_area_chunks[0];
+        self.render_collection_requests(side_area, frame);
+
+        // render the main area with the request details
         let request_details_area = main_area_chunks[2];
-
-        let block = Block::bordered().title(self.collection.name());
-        if !self.collection.is_empty() {
-            let requests = Paragraph::new(
-                self.collection
-                    .iter()
-                    .map(|request| Line::from(request.to_string()))
-                    .collect::<Vec<Line>>(),
-            )
-            .block(block)
-            .wrap(Wrap { trim: true });
-            frame.render_widget(requests, side_area);
-        } else {
-            let no_requests =
-                Paragraph::new("No requests in collection".bold().yellow().to_string())
-                    .wrap(Wrap { trim: true })
-                    .block(block);
-            frame.render_widget(no_requests, side_area);
-        };
-
         frame.render_widget(Block::bordered(), request_details_area);
 
         if self.open_new_request_popup {
@@ -250,6 +235,58 @@ impl App {
         self.new_request_step = (self.new_request_step + 1) % 3;
         self.new_request_method
             .set_focus(self.new_request_step == 1);
+    }
+
+    /// Renders the side area where all the requests from the currently opened Collection. This
+    /// method takes a Rect to actually know where the sidebar is instead of deciding by itself
+    /// where it should. Since this is more like a "component", it should not care about where it
+    /// is going to be used, just how.
+    fn render_collection_requests(&self, area: Rect, frame: &mut Frame) {
+        let block = Block::bordered().title(self.collection.name());
+        if self.collection.is_empty() {
+            frame.render_widget(
+                Paragraph::new(
+                    Text::from("No requests in collection").style(Style::new().fg(Color::Yellow)),
+                )
+                .block(block),
+                area,
+            )
+        } else {
+            // divide the area into possible blocks that can be displayed
+            // the total blocks can be calculated using area.height / 4 where 2 lines is taken by
+            // a block's border and 2 more lines for request name, method and url
+            let num_of_blocks = area.height / 4;
+            let mut chunk_constraints = Vec::<Constraint>::new();
+            for _ in 0..num_of_blocks {
+                chunk_constraints.push(Constraint::Length(4));
+            }
+            let chunks = Layout::new(Direction::Vertical, chunk_constraints).split(area);
+            for _ in 0..num_of_blocks {}
+            for (index, request) in self
+                .collection
+                .iter()
+                .take(num_of_blocks as usize)
+                .enumerate()
+            {
+                let method = request.get_method();
+                let name = request.get_name();
+                let url = request.get_url();
+                let first_line = Line::from(name);
+                let second_line = Line::from(vec![
+                    Span::from(method.to_str()).style(Style::new().fg(method.color())),
+                    " ".into(),
+                    Span::from(url),
+                ]);
+                let paragraph = Paragraph::new(vec![first_line, second_line]).block(
+                    Block::bordered().style(Style::default().fg(if index == 0 {
+                        Color::LightYellow
+                    } else {
+                        Color::default()
+                    })),
+                );
+                frame.render_widget(paragraph, chunks[index]);
+            }
+        }
     }
 
     fn render_new_request_popup(&self, frame: &mut Frame) {

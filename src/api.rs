@@ -1,6 +1,8 @@
+use ratatui::style;
+use ratatui::text;
 use std::collections::HashMap;
-use std::fmt;
-use std::slice::{Iter, IterMut};
+use std::fmt::{self};
+use std::slice::Iter;
 
 /// Collection represents a collection of Routes and/or nested Collections with Environments.
 #[derive(Debug, Clone)]
@@ -10,12 +12,12 @@ pub struct Collection {
 }
 
 impl Collection {
-    pub fn new(name: String, requests: Vec<Request>) -> Self {
-        Self { requests, name }
-    }
-
     pub fn add_request(&mut self, route: Request) {
         self.requests.push(route);
+    }
+
+    pub fn get_request_count(&self) -> usize {
+        self.requests.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -30,9 +32,10 @@ impl Collection {
         self.requests.iter()
     }
 
-    pub fn iter_mut(&mut self) -> IterMut<'_, Request> {
-        self.requests.iter_mut()
-    }
+    // Import std::slice::IterMut
+    // pub fn iter_mut(&mut self) -> IterMut<'_, Request> {
+    //     self.requests.iter_mut()
+    // }
 }
 
 impl IntoIterator for Collection {
@@ -84,8 +87,19 @@ impl Request {
         }
     }
 
-    pub fn to_string(&self) -> String {
-        format!("{} {} {}", self.name, self.method, self.url)
+    /// Gets a clone of the name of the request.
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    /// Gets the http method of the request.
+    pub fn get_method(&self) -> HttpMethod {
+        self.method
+    }
+
+    /// Gets a clone of the url of the request.
+    pub fn get_url(&self) -> String {
+        self.url.clone()
     }
 }
 
@@ -102,28 +116,6 @@ pub enum HttpMethod {
 }
 
 impl HttpMethod {
-    pub fn next(&self) -> HttpMethod {
-        match self {
-            HttpMethod::Get => HttpMethod::Post,
-            HttpMethod::Post => HttpMethod::Put,
-            HttpMethod::Put => HttpMethod::Patch,
-            HttpMethod::Patch => HttpMethod::Delete,
-            HttpMethod::Delete => HttpMethod::Option,
-            HttpMethod::Option => HttpMethod::Get,
-        }
-    }
-
-    pub fn prev(&self) -> HttpMethod {
-        match self {
-            HttpMethod::Get => HttpMethod::Option,
-            HttpMethod::Post => HttpMethod::Get,
-            HttpMethod::Put => HttpMethod::Post,
-            HttpMethod::Patch => HttpMethod::Put,
-            HttpMethod::Delete => HttpMethod::Patch,
-            HttpMethod::Option => HttpMethod::Delete,
-        }
-    }
-
     pub fn to_str(&self) -> &str {
         match self {
             HttpMethod::Get => "GET",
@@ -132,6 +124,17 @@ impl HttpMethod {
             HttpMethod::Patch => "PATCH",
             HttpMethod::Delete => "DELETE",
             HttpMethod::Option => "OPTION",
+        }
+    }
+
+    pub fn color(&self) -> style::Color {
+        match self {
+            HttpMethod::Get => style::Color::Green,
+            HttpMethod::Post => style::Color::Yellow,
+            HttpMethod::Put => style::Color::Blue,
+            HttpMethod::Patch => style::Color::LightBlue,
+            HttpMethod::Delete => style::Color::Red,
+            HttpMethod::Option => style::Color::LightCyan,
         }
     }
 }
