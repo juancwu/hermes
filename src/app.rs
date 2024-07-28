@@ -9,8 +9,11 @@ use ratatui::{
     Frame,
 };
 
-use crate::api::{Collection, HttpMethod, Request};
 use crate::tui;
+use crate::{
+    api::{Collection, HttpMethod, Request},
+    instructions,
+};
 
 use crate::components;
 
@@ -263,22 +266,18 @@ impl App {
             .split(popup_area);
 
         // instructions for method list
-        let instructions = if self.new_request_step == 1 {
-            Paragraph::new("Use j/k to change method.")
-                .style(Style::new().fg(Color::LightBlue))
-                .left_aligned()
-        } else {
-            Paragraph::new("Start typing.")
-                .style(Style::new().fg(Color::LightBlue))
-                .left_aligned()
-        };
-        frame.render_widget(instructions, chunks[2]);
+        frame.render_widget(
+            instructions!(if self.new_request_step == 1 {
+                "Use j/k to change method."
+            } else {
+                "Start typing."
+            })
+            .left_aligned(),
+            chunks[2],
+        );
 
         // instructions to exit the popup
-        let instructions = Paragraph::new("<esc> to cancel.")
-            .style(Style::new().fg(Color::LightBlue))
-            .right_aligned();
-        frame.render_widget(instructions, chunks[2]);
+        frame.render_widget(instructions!("<esc> to cancel.").right_aligned(), chunks[2]);
 
         // separate the area for the method and url
         let url_chunks = layout::Layout::default()

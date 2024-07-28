@@ -3,6 +3,13 @@
 use derive_setters::*;
 use ratatui::widgets::{Paragraph, Widget};
 
+#[macro_export]
+macro_rules! instructions {
+    ($text:expr) => {
+        Paragraph::new($text).style(Style::new().fg(Color::LightBlue))
+    };
+}
+
 /// Different input modes for the Input component. Nothing gets registered outside of Insert mode.
 #[derive(Debug, Default, Clone, Copy)]
 pub enum InputMode {
