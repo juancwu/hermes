@@ -1,32 +1,31 @@
 use std::{collections::HashMap, io};
 
 use ratatui::{
-    buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     layout::{self, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Text},
-    widgets::{Block, Clear, Paragraph, Widget, Wrap},
+    widgets::{self, Block, Clear, Paragraph, Wrap},
     Frame,
 };
 
+use crate::api::{Collection, HttpMethod, Request};
 use crate::tui;
-use crate::widgets::input::Input;
-use crate::{
-    api::{Collection, HttpMethod, Request},
-    APP_VERSION,
-};
+
+use crate::components;
 
 /// App is the main application process that will update and render as well as store the
 /// application state.
 #[derive(Debug)]
 pub struct App {
     collection: Collection,
+
+    /// Flag controlling
     open_new_request_popup: bool,
     new_request_step: usize,
-    new_request_name: Input,
+    new_request_name: components::Input,
     new_request_method: HttpMethod,
-    new_request_url: Input,
+    new_request_url: components::Input,
 
     exit: bool,
 }
@@ -41,9 +40,9 @@ impl Default for App {
             collection: Collection::default(),
             open_new_request_popup: false,
             new_request_step: 0,
-            new_request_name: Input::default(),
+            new_request_name: components::Input::new().title("Name"),
             new_request_method: HttpMethod::Get,
-            new_request_url: Input::default(),
+            new_request_url: components::Input::new().title("Url"),
             exit: false,
         }
     }
@@ -77,7 +76,7 @@ impl App {
         frame.render_widget(global_instructions, chunks[1]);
         // .render(chunks[1], buf);
         let app_name = Paragraph::new(Text::styled(
-            format!("Hermes {} ", APP_VERSION),
+            format!("Hermes {} ", "0.1.0"),
             Style::default().fg(Color::LightYellow),
         ))
         .right_aligned();
@@ -139,6 +138,7 @@ impl App {
                     KeyCode::Char('q') => self.exit = true,
                     KeyCode::Char('a') => {
                         self.open_new_request_popup = true;
+                        self.new_request_name.enable_insert_mode();
                     }
                     KeyCode::Enter if key_event.modifiers == KeyModifiers::CONTROL => {}
                     _ => {}
@@ -208,6 +208,19 @@ impl App {
     ///
     /// IMPORTANT: this method will clear out the current input widget buffer.
     fn move_to_next_new_request_step(&mut self) {
+        match self.new_request_step {
+            0 => {
+                self.new_request_name.enable_normal_mode();
+            }
+            1 => {
+                self.new_request_url.enable_insert_mode();
+            }
+            2 => {
+                self.new_request_name.enable_insert_mode();
+                self.new_request_url.enable_normal_mode();
+            }
+            _ => {}
+        };
         self.new_request_step = (self.new_request_step + 1) % 3;
     }
 
@@ -224,6 +237,7 @@ impl App {
             width: area.width / 2,
             height: popup_height,
         };
+        // clear area, avoid things underneath leaked into the popup
         frame.render_widget(Clear, popup_area);
 
         let chunks = Layout::default()
@@ -236,6 +250,7 @@ impl App {
             ])
             .split(popup_area);
 
+        // instructions for method list
         let instructions = if self.new_request_step == 1 {
             Paragraph::new("Use j/k to change method.")
                 .style(Style::new().fg(Color::LightBlue))
@@ -247,22 +262,13 @@ impl App {
         };
         frame.render_widget(instructions, chunks[2]);
 
+        // instructions to exit the popup
         let instructions = Paragraph::new("<esc> to cancel.")
             .style(Style::new().fg(Color::LightBlue))
             .right_aligned();
         frame.render_widget(instructions, chunks[2]);
 
-        let request_name = Paragraph::new(self.new_request_name.get_string()).block(
-            Block::bordered()
-                .title("Name")
-                .style(if self.new_request_step == 0 {
-                    Style::new().fg(Color::Yellow)
-                } else {
-                    Style::default()
-                }),
-        );
-        frame.render_widget(request_name, chunks[0]);
-        // divide second line into two for method and url
+        // separate the area for the method and url
         let url_chunks = layout::Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
@@ -270,6 +276,8 @@ impl App {
                 layout::Constraint::Percentage(80),
             ])
             .split(chunks[1]);
+
+        // create the request method text
         let request_method = Paragraph::new(self.new_request_method.to_str()).block(
             Block::bordered()
                 .title("Method")
@@ -279,17 +287,11 @@ impl App {
                     Style::default()
                 }),
         );
+
+        // render all inputs
+        frame.render_widget(self.new_request_name.clone(), chunks[0]);
         frame.render_widget(request_method, url_chunks[0]);
-        let request_url = Paragraph::new(self.new_request_url.get_string()).block(
-            Block::bordered()
-                .title("Url")
-                .style(if self.new_request_step == 2 {
-                    Style::new().fg(Color::Yellow)
-                } else {
-                    Style::default()
-                }),
-        );
-        frame.render_widget(request_url, url_chunks[1]);
+        frame.render_widget(self.new_request_url.clone(), url_chunks[1]);
 
         // set cursor
         match self.new_request_step {
