@@ -90,8 +90,9 @@ impl Request {
 }
 
 /// HttpMethod is the method that a Request should use to call the API.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum HttpMethod {
+    #[default]
     Get,
     Post,
     Patch,

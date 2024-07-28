@@ -5,7 +5,7 @@ use ratatui::{
     layout::{self, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Text},
-    widgets::{self, Block, Clear, Paragraph, Wrap},
+    widgets::{Block, Clear, Paragraph, Wrap},
     Frame,
 };
 
@@ -24,7 +24,7 @@ pub struct App {
     open_new_request_popup: bool,
     new_request_step: usize,
     new_request_name: components::Input,
-    new_request_method: HttpMethod,
+    new_request_method: components::List<HttpMethod>,
     new_request_url: components::Input,
 
     exit: bool,
@@ -41,7 +41,16 @@ impl Default for App {
             open_new_request_popup: false,
             new_request_step: 0,
             new_request_name: components::Input::new().title("Name"),
-            new_request_method: HttpMethod::Get,
+            new_request_method: components::List::default()
+                .items(vec![
+                    HttpMethod::Get,
+                    HttpMethod::Post,
+                    HttpMethod::Patch,
+                    HttpMethod::Put,
+                    HttpMethod::Delete,
+                    HttpMethod::Option,
+                ])
+                .title("Method"),
             new_request_url: components::Input::new().title("Url"),
             exit: false,
         }
@@ -151,8 +160,8 @@ impl App {
                     KeyCode::Char(ch) => match self.new_request_step {
                         0 => self.new_request_name.enter_character(ch),
                         1 => match ch {
-                            'j' => self.new_request_method = self.new_request_method.next(),
-                            'k' => self.new_request_method = self.new_request_method.prev(),
+                            'j' => self.new_request_method.next(),
+                            'k' => self.new_request_method.prev(),
                             _ => {}
                         },
                         2 => self.new_request_url.enter_character(ch),
@@ -176,7 +185,10 @@ impl App {
                         if self.is_end_of_new_request() {
                             let request = Request::new(
                                 self.new_request_name.get_string(),
-                                self.new_request_method,
+                                match self.new_request_method.get_selected() {
+                                    Some(method) => method,
+                                    None => HttpMethod::Get,
+                                },
                                 self.new_request_url.get_string(),
                                 None,
                                 None,
@@ -277,20 +289,9 @@ impl App {
             ])
             .split(chunks[1]);
 
-        // create the request method text
-        let request_method = Paragraph::new(self.new_request_method.to_str()).block(
-            Block::bordered()
-                .title("Method")
-                .style(if self.new_request_step == 1 {
-                    Style::new().fg(Color::Yellow)
-                } else {
-                    Style::default()
-                }),
-        );
-
         // render all inputs
         frame.render_widget(self.new_request_name.clone(), chunks[0]);
-        frame.render_widget(request_method, url_chunks[0]);
+        frame.render_widget(self.new_request_method.clone(), url_chunks[0]);
         frame.render_widget(self.new_request_url.clone(), url_chunks[1]);
 
         // set cursor

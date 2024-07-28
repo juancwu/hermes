@@ -1,7 +1,7 @@
 //! This file is named components.rs to not cause conflicts with ratatui::widgets for suggestions.
 
 use derive_setters::*;
-use ratatui::widgets::Widget;
+use ratatui::widgets::{Paragraph, Widget};
 
 /// Different input modes for the Input component. Nothing gets registered outside of Insert mode.
 #[derive(Debug, Default, Clone, Copy)]
@@ -138,5 +138,90 @@ impl Widget for Input {
                 InputMode::Insert => self.insert_mode_style,
             })
             .render(area, buf);
+    }
+}
+
+#[derive(Debug, Clone, Setters)]
+pub struct List<T> {
+    /// The items available in the List. The List defaults to have "None" item if no items were
+    #[setters(into)]
+    items: Vec<T>,
+    /// The currently selected item's index.
+    #[setters(skip)]
+    selected_index: usize,
+    /// The title of the List.
+    #[setters(into)]
+    title: String,
+    /// The style for the borders
+    border_style: ratatui::style::Style,
+    /// The style for the borders when list is focused. Default style is yellow borders.
+    focus_border_style: ratatui::style::Style,
+    /// The styles for the text
+    style: ratatui::style::Style,
+    /// The styles for the text when list is focused. Default style is yellow text.
+    focus_style: ratatui::style::Style,
+    /// Flag that determines if list is focused or not.
+    #[setters(skip)]
+    is_focused: bool,
+}
+
+impl<T: Clone> List<T> {
+    /// Move to the next item in List.
+    pub fn next(&mut self) {
+        self.selected_index = (self.selected_index + 1) % self.items.len();
+    }
+
+    // Move to the previous item in List.
+    pub fn prev(&mut self) {
+        self.selected_index = if self.selected_index == 0 {
+            self.items.len() - 1
+        } else {
+            (self.selected_index - 1) % self.items.len()
+        };
+    }
+
+    /// Get the value of the selected item in the List.
+    pub fn get_selected(&self) -> Option<T> {
+        if self.items.is_empty() {
+            None
+        } else {
+            Some(self.items[self.selected_index].clone())
+        }
+    }
+}
+
+impl<T: ToString + Clone> Widget for List<T> {
+    fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
+        Paragraph::new(self.items[self.selected_index].to_string())
+            .block(
+                ratatui::widgets::Block::bordered()
+                    .title(self.title)
+                    .border_style(if self.is_focused {
+                        self.focus_border_style
+                    } else {
+                        self.border_style
+                    }),
+            )
+            .style(if self.is_focused {
+                self.focus_style
+            } else {
+                self.style
+            })
+            .render(area, buf);
+    }
+}
+
+impl<T: Default + Clone> Default for List<T> {
+    fn default() -> Self {
+        Self {
+            items: vec![T::default()],
+            selected_index: 0,
+            title: String::from(""),
+            border_style: ratatui::style::Style::default(),
+            focus_border_style: ratatui::style::Style::new().fg(ratatui::style::Color::Yellow),
+            style: ratatui::style::Style::default(),
+            focus_style: ratatui::style::Style::new().fg(ratatui::style::Color::Yellow),
+            is_focused: false,
+        }
     }
 }
