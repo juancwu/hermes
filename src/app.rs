@@ -88,12 +88,11 @@ impl App {
             .split(area);
 
         // render the app name
-        let global_instructions = Paragraph::new(Text::styled(
-            "  <pgUp/pgDn> to scroll, <esc> to cancel, ? for help and q to quit.",
-            Style::default().fg(Color::LightBlue),
-        ))
-        .left_aligned();
-        frame.render_widget(global_instructions, chunks[1]);
+        frame.render_widget(
+            instructions!("<pgUp/pgDn> to scroll, <esc> to cancel, ? for help and q to quit.")
+                .left_aligned(),
+            chunks[1],
+        );
         // .render(chunks[1], buf);
         let app_name = Paragraph::new(Text::styled(
             format!("Hermes {} ", "0.1.0"),
