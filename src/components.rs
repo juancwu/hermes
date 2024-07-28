@@ -187,6 +187,12 @@ impl<T: Clone> List<T> {
         };
     }
 
+    /// Sets the focus state of the list. This will allow the component to render the correct
+    /// styles.
+    pub fn set_focus(&mut self, state: bool) {
+        self.is_focused = state;
+    }
+
     /// Get the value of the selected item in the List.
     pub fn get_selected(&self) -> Option<T> {
         if self.items.is_empty() {

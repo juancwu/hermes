@@ -237,6 +237,8 @@ impl App {
             _ => {}
         };
         self.new_request_step = (self.new_request_step + 1) % 3;
+        self.new_request_method
+            .set_focus(self.new_request_step == 1);
     }
 
     fn render_new_request_popup(&self, frame: &mut Frame) {
