@@ -16,16 +16,15 @@ You can define a route within Hermes or create a file within the collection fold
 its just a normal text file.
 
 Here is an example of a route:
+
 ```
-# greet.hermes -- this is a comment
 metadata {
     name: Greet Hermes
 }
 
-route {
+request {
     method: post
     url: https://{{HOST}}:8000/greet
-    # select the body to use
     body: json
     headers: {
         Content-Type: application/json
@@ -40,7 +39,6 @@ body::json {
     }
 }
 
-# define multiple bodies, and use them later if you need them
 body::form-urlencoded {
     me: Hermes
 }
