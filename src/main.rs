@@ -2,6 +2,7 @@ use std::io;
 
 mod api;
 mod app;
+mod compiler;
 mod components;
 mod tui;
 
