@@ -28,11 +28,17 @@ request {
     body json
     headers H
     variables V
+    queries Q
 }
 
 headers::H {
-        Content-Type application/json
-        Authorization "Bearer token"
+        Content-Type 1 application/json
+        Authorization 1 "Bearer token"
+}
+
+queries::Q {
+    name 1 Hey
+    job 0 "Not enabled, won't be included in the request"
 }
 
 variables::V {
@@ -79,9 +85,9 @@ collection {
     # use None as value if there is no active environment, or just remove the line
     enviroment development
     # collection file can also be in the same folder as the requests in the collection.# collection file can also be in the same folder as the requests in the collection.# collection file can also be in the same folder as the requests in the collection.# collection file can also be in the same folder as the requests in the collection.
-    requests from .
+    include .
     # allow the usage of collections from other locations
-    requests from /path/to/requests/folder
+    include /path/to/requests/folder
 }
 
 environment::development {
@@ -107,7 +113,7 @@ metadata {
 }
 
 folder {
-    requests from /path/to/requests
-    request from /path/to/a/request
+    include /path/to/requests
+    add /path/to/a/request
 }
 ```
