@@ -2,8 +2,8 @@ use std::io;
 
 mod api;
 mod app;
-mod compiler;
 mod components;
+mod parser;
 mod tui;
 
 fn main() -> io::Result<()> {
