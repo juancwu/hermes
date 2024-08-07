@@ -8,6 +8,7 @@ pub enum State {
     Delimeter,
     RawValue,
     Comment,
+    Error,
 
     // Transitional states, means that it should continue going through the input and transition
     // table.
@@ -121,4 +122,12 @@ pub fn build_transition_table() -> HashMap<(State, Input), State> {
     );
 
     table
+}
+
+/// Check if given state is a definitive state which indicates a stop to read current string.
+pub fn is_definitive_state(state: State) -> bool {
+    match state {
+        State::ReadingIdentifier | State::ReadingComment | State::ReadingRawValue => false,
+        _ => true,
+    }
 }

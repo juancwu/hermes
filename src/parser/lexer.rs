@@ -1,111 +1,100 @@
+use std::collections::HashMap;
+use std::str::Chars;
+
 use crate::parser::token::Token;
+use crate::parser::transition_table::{build_transition_table, char_to_input, Input, State};
+
+use super::transition_table::is_definitive_state;
 
 #[derive(Debug, Clone)]
-pub struct Lexer {
-    current_character: char,
-    current_string: String,
-    current_position: usize,
-    leading_position: usize,
-    input_string: String,
-    available_bytes: i64,
+pub struct Lexer<'a> {
+    input: &'a str,
+    chars: Chars<'a>,
+    current_char: Option<char>,
+    lookahead_char: Option<char>,
+    transition_table: HashMap<(State, Input), State>,
 }
 
-impl Lexer {
-    pub fn new(input_string: String) -> Self {
-        Self {
-            current_character: '\0',
-            current_string: String::new(),
-            current_position: 0,
-            leading_position: 0,
-            input_string,
-            available_bytes: 0,
-        }
+impl<'a> Lexer<'a> {
+    pub fn new(input: &'a str) -> Self {
+        let mut lexer = Lexer {
+            input,
+            chars: input.chars(),
+            current_char: None,
+            lookahead_char: None,
+            transition_table: build_transition_table(),
+        };
+        // initialize the lexer character position
+        lexer.advance();
+        // Fill lookahead
+        lexer.advance();
+        lexer
     }
 
-    pub fn next_token(&mut self) -> Token {
-        if self.is_eof() {
-            return Token::EOF;
-        }
+    /// Grab the next token that can be identified in the input.
+    pub fn next_token(&mut self) -> Option<Token> {
+        self.skip_whitespaces_or_newline();
 
-        self.skip_whitespace();
-
-        let mut token: Token = Token::EOF;
-
-        while !self.is_eof() {
-            match self.current_character {
-                '"' => {
-                    // skip initial double quotes
-                    let mut escape = false;
-                    while !self.is_eof() && self.read_character().is_some() {
-                        if escape {
-                            self.current_string.push(self.current_character);
-                            escape = false;
-                            continue;
-                        }
-                        if self.current_character == '\\' {
-                            escape = true;
-                            continue;
-                        }
-                        if self.current_character == '"' {
-                            break;
-                        }
-                        self.current_string.push(self.current_character);
-                    }
-                    token = Token::RawValue(self.current_string.clone())
-                }
-                '{' => {
-                    token = Token::CurlyLeft;
-                }
-                '}' => {
-                    token = Token::CurlyRight;
-                }
-                ':' => {
-                    token = Token::DoubleColon;
-                }
-                _ => {
-                    token = Token::Illegal;
-                }
+        let mut token: Option<Token> = None;
+        let mut state = State::Start;
+        while let Some(ch) = self.current_char {
+            let input_type = char_to_input(ch);
+            state = match self.transition_table.get(&(state, input_type)) {
+                Some(&new_state) => new_state,
+                None => State::Error,
+            };
+            if state == State::Error {
+                token = Some(Token::Illegal);
+                break;
+            } else if is_definitive_state(state) {
+                // do something here
+            } else {
+                self.advance();
             }
         }
-
-        self.current_string.clear();
 
         token
     }
 
-    /// Reads a raw string from the input source.
-    fn read_raw_string(&mut self, include_linefeed: bool) {}
-
-    fn read_character(&mut self) -> Option<char> {
-        if self.is_eof() {
-            return None;
-        }
-
-        self.current_character = match self.input_string.chars().nth(self.leading_position) {
-            Some(ch) => ch,
-            None => '\0',
-        };
-
-        self.current_position = self.leading_position;
-        self.leading_position += 1;
-
-        Some(self.current_character)
+    /// Move onto the next character, may be None.
+    fn advance(&mut self) {
+        self.current_char = self.lookahead_char;
+        self.lookahead_char = self.chars.next();
     }
 
-    fn peek_character(&self) -> Option<char> {
-        if self.is_eof() {
-            return None;
+    /// Skip all characters that have the White_Space property. Read Rust documentation for more
+    /// information.
+    fn skip_whitespaces_or_newline(&mut self) {
+        while let Some(ch) = self.current_char {
+            if ch.is_whitespace() {
+                self.advance();
+            } else {
+                break;
+            }
         }
-        self.input_string.chars().nth(self.leading_position)
     }
 
-    fn is_eof(&self) -> bool {
-        self.leading_position >= self.input_string.len()
+    /// Skips all the characters that are comments.
+    fn skip_comment(&mut self) {
+        while let Some(ch) = self.current_char {
+            if ch == '\n' {
+                break;
+            }
+            self.advance();
+        }
     }
 
-    fn skip_whitespace(&mut self) {
-        while self.current_character == ' ' {
-            self.read_character();
+    /// Reads an identifier, this can be a word with a combination of any characters that does not
+    /// include any numbers, colon and whitespaces.
+    fn read_identifier(&mut self) -> String {
+        let mut identifier: String = String::new();
+        while let Some(ch) = self.current_char {
+            if ch.is_whitespace() || ch.is_numeric() || ch == ':' {
+                break;
+            }
+            identifier.push(ch);
+            self.advance();
         }
+        identifier
     }
 }

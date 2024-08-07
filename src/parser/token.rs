@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     /// Represents illegal characters that shouldn't be in the .hermes syntax
     Illegal,
@@ -17,7 +17,8 @@ pub enum Token {
     /// environment
     /// body
     /// queries
-    Block(String, String),
+    BlockType(String),
+    BlockName(String),
     /// Typical identifier in any language. This will mostly just be
     /// block names that are used to reference to defined blocks or for reserved keywords.
     ///
@@ -32,8 +33,6 @@ pub enum Token {
     /// add - add a single request
     /// include - include all requests from a given path
     Identifier(String),
-    /// The SelectorOperator refers to the two colons "::".
-    SelectorOperator,
     /// Refers to any raw value read from a hermes file. For example, the JSON body string would be
     /// a raw value, as well as the value of a query parameter.
     RawValue(String),
@@ -45,5 +44,4 @@ pub enum Token {
     StateDisabled,
     CurlyLeft,
     CurlyRight,
-    DoubleColon,
 }
