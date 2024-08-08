@@ -2,23 +2,17 @@
 pub enum Token {
     /// Represents illegal characters that shouldn't be in the .hermes syntax
     Illegal,
-    EOF,
-    /// This is a data block and it can be a key block that is reserved, or it is custom defined.
-    /// A block is defined by the (type, identier) where the identifier can be an empty string for
-    /// annonynous block.
-    ///
-    /// Available reserved blocks:
-    /// metadata
-    /// request
-    /// container
-    /// folder
-    /// headers
-    /// variables
-    /// environment
-    /// body
-    /// queries
-    BlockType(String),
+    /// Defines a named block.
     BlockName(String),
+    MetadataBlock,
+    RequestBlock,
+    BodyBlock,
+    HeadersBlock,
+    QueriesBlock,
+    EnvironmentBlock,
+    VariablesBlock,
+    CollectionBlock,
+    FolderBlock,
     /// Typical identifier in any language. This will mostly just be
     /// block names that are used to reference to defined blocks or for reserved keywords.
     ///
