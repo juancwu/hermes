@@ -3,7 +3,6 @@ pub enum Token {
     /// Represents illegal characters that shouldn't be in the .hermes syntax
     Illegal,
     /// Defines a named block.
-    BlockName(String),
     MetadataBlock,
     RequestBlock,
     BodyBlock,

@@ -44,12 +44,12 @@ impl<'a> Lexer<'a> {
             let input_type = char_to_input(ch);
             state = match self.transition_table.get(&(state, input_type)) {
                 Some(&new_state) => new_state,
-                None => State::Error,
+                None => return Some(Token::Illegal),
             };
-            // println!(
-            //     "{}, {:?}, {:?}, {}, {}",
-            //     ch, input_type, state, self.start_index, self.end_index
-            // );
+            println!(
+                "{}, {:?}, {:?}, {}, {}",
+                ch, input_type, state, self.start_index, self.end_index
+            );
             // do something here
             match state {
                 State::Identifier => {
@@ -80,12 +80,12 @@ impl<'a> Lexer<'a> {
                         let input_type = char_to_input(ch);
                         state = match self.transition_table.get(&(state, input_type)) {
                             Some(&new_state) => new_state,
-                            None => State::Error,
+                            None => return Some(Token::Illegal),
                         };
-                        // println!(
-                        //     "{}, {:?}, {:?}, {}, {}",
-                        //     ch, input_type, state, self.start_index, self.end_index
-                        // );
+                        println!(
+                            "{}, {:?}, {:?}, {}, {}",
+                            ch, input_type, state, self.start_index, self.end_index
+                        );
                         match state {
                             State::ReadingEscapedChar => {
                                 // skip the backslash
@@ -107,9 +107,6 @@ impl<'a> Lexer<'a> {
                             }
                         }
                     }
-                }
-                State::Error => {
-                    return Some(Token::Illegal);
                 }
                 State::Comment => {
                     // the transition table should have gotten rid of all the comment characters.

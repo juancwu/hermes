@@ -18,7 +18,7 @@ mod tui;
 fn main() {
     let tokens = parser::parser::parse(
         r#"
-    metadata {
+    metadata::m {
         name 0 "some value and escaped \n \""
         some-other2123_?dksj
     }
