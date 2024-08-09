@@ -9,5 +9,6 @@ pub fn parse(input_string: &str) -> Vec<Token> {
         tokens.push(token.unwrap());
         token = lexer.next_token();
     }
+
     tokens
 }
