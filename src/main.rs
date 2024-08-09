@@ -16,7 +16,7 @@ mod tui;
 // }
 
 fn main() {
-    let tokens = parser::parser::parse(
+    let tokens = parser::parse::parse(
         r#"
     metadata::m {
         name 0 "some value and escaped \n \""
