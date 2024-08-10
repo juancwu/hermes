@@ -1,5 +1,4 @@
 use ratatui::style;
-use ratatui::text;
 use std::collections::HashMap;
 use std::fmt::{self};
 use std::slice::Iter;
@@ -7,8 +6,12 @@ use std::slice::Iter;
 /// Collection represents a collection of Routes and/or nested Collections with Environments.
 #[derive(Debug, Clone)]
 pub struct Collection {
-    requests: Vec<Request>,
+    identifier: String,
     name: String,
+    requests: Vec<Request>,
+    enable_environment: bool,
+    active_environment: String,
+    environments: HashMap<String, HashMap<String, String>>,
 }
 
 impl Collection {
@@ -24,8 +27,46 @@ impl Collection {
         return self.requests.is_empty();
     }
 
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
     pub fn name(&self) -> String {
         self.name.clone()
+    }
+
+    pub fn set_identifier(&mut self, identifier: String) {
+        self.identifier = identifier;
+    }
+
+    pub fn identifier(&self) -> String {
+        self.identifier.clone()
+    }
+
+    pub fn new_environment(&mut self, environment_name: String) {
+        self.environments.insert(environment_name, HashMap::new());
+    }
+
+    pub fn set_active_environment(&mut self, enviroment_name: String) {
+        self.active_environment = enviroment_name;
+    }
+
+    pub fn add_environment_entry(&mut self, key: String, value: String) {
+        if let Some(env) = self.environments.get_mut(&self.active_environment) {
+            env.insert(key, value);
+        }
+    }
+
+    pub fn get_active_environment(&mut self) -> Option<&mut HashMap<String, String>> {
+        self.environments.get_mut(&self.active_environment)
+    }
+
+    pub fn enable_active_environment(&mut self) {
+        self.enable_environment = true;
+    }
+
+    pub fn disable_active_environment(&mut self) {
+        self.enable_environment = false;
     }
 
     pub fn iter(&self) -> Iter<'_, Request> {
@@ -51,6 +92,10 @@ impl Default for Collection {
         Collection {
             name: String::from("Untitled Collection"),
             requests: vec![],
+            identifier: String::new(),
+            enable_environment: false,
+            active_environment: String::new(),
+            environments: HashMap::new(),
         }
     }
 }

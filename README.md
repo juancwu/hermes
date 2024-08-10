@@ -46,18 +46,18 @@ variables::V {
     some-other 0 "its disabled"
 }
 
-body::json {
+body.json::json {
     {
         "from": "Hermes",
         "to": "Hermes"
     }
 }
 
-body::form-urlencoded {
+body.form-urlencoded::form {
     me Hermes
 }
 
-body::text {
+body.text::text {
     "some text, this
     text
 can
@@ -76,12 +76,8 @@ body::multipart-form {
 A collection example (this is only some metadata for the collection):
 
 ```
-metadata {
-    type collection
-    name "collection name"
-}
-
 collection {
+    name "collection name"
     # use None as value if there is no active environment, or just remove the line
     enviroment development
     # collection file can also be in the same folder as the requests in the collection.# collection file can also be in the same folder as the requests in the collection.# collection file can also be in the same folder as the requests in the collection.# collection file can also be in the same folder as the requests in the collection.
@@ -107,12 +103,8 @@ They are not real folders though. This "folders" are just a file that defines wh
 be grouped together. See below for an example:
 
 ```
-metadata {
-    type folder
-    name "folder name"
-}
-
 folder {
+    name "folder name"
     include /path/to/requests
     add /path/to/a/request
 }

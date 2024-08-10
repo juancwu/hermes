@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::str::Chars;
 
-use crate::parser::token::Token;
-use crate::parser::transition_table::{build_transition_table, char_to_input, Input, State};
+use crate::parse::token::Token;
+use crate::parse::transition_table::{build_transition_table, char_to_input, Input, State};
 
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
@@ -46,10 +46,10 @@ impl<'a> Lexer<'a> {
                 Some(&new_state) => new_state,
                 None => return Some(Token::Illegal),
             };
-            println!(
-                "{}, {:?}, {:?}, {}, {}",
-                ch, input_type, state, self.start_index, self.end_index
-            );
+            // println!(
+            //     "{}, {:?}, {:?}, {}, {}",
+            //     ch, input_type, state, self.start_index, self.end_index
+            // );
             // do something here
             match state {
                 State::Identifier => {
@@ -82,10 +82,10 @@ impl<'a> Lexer<'a> {
                             Some(&new_state) => new_state,
                             None => return Some(Token::Illegal),
                         };
-                        println!(
-                            "{}, {:?}, {:?}, {}, {}",
-                            ch, input_type, state, self.start_index, self.end_index
-                        );
+                        // println!(
+                        //     "{}, {:?}, {:?}, {}, {}",
+                        //     ch, input_type, state, self.start_index, self.end_index
+                        // );
                         match state {
                             State::ReadingEscapedChar => {
                                 // skip the backslash
@@ -119,6 +119,16 @@ impl<'a> Lexer<'a> {
                         '1' => return Some(Token::StateEnabled),
                         _ => return Some(Token::StateDisabled),
                     }
+                }
+                State::BlockIdentifier => {
+                    // skip double colons
+                    self.start_index += 2;
+                    // get the raw string
+                    let identifier = self.get_raw_string();
+                    // reset the pointer to be at the same place now after grabbing the
+                    // identifier
+                    self.start_index = self.end_index;
+                    return Some(Token::BlockIdentifier(identifier.clone()));
                 }
                 _ => {
                     self.advance();
@@ -160,7 +170,6 @@ impl<'a> Lexer<'a> {
 
     fn match_identifier_to_keyword(&self, identifier: String) -> Token {
         match identifier.as_str() {
-            "metadata" => Token::MetadataBlock,
             "request" => Token::RequestBlock,
             "collection" => Token::CollectionBlock,
             "headers" => Token::HeadersBlock,

@@ -3,7 +3,7 @@ use std::io;
 mod api;
 mod app;
 mod components;
-mod parser;
+mod parse;
 mod tui;
 
 // fn main() -> io::Result<()> {
@@ -16,15 +16,31 @@ mod tui;
 // }
 
 fn main() {
-    let tokens = parser::parse::parse(
+    let mut lexer = parse::lexer::Lexer::new(
         r#"
-    metadata::m {
-        name 0 "some value and escaped \n \""
-        some-other2123_?dksj
+    collection::C {
+        name "my collection"
+        include "."
+        environment 0 dev
+    }
+
+    environment::dev {
+        URL "/url"
     }
     "#,
     );
-    println!("{:?}", tokens);
+    let mut parser = parse::collection::CollectionParser::default();
+    let collection = parser.parse(&mut lexer);
+    println!("{:?}", collection);
+    // let tokens = parser::parse::parse(
+    //     r#"
+    // metadata::m {
+    //     name 0 "some value and escaped \n \""
+    //     some-other2123_?dksj
+    // }
+    // "#,
+    // );
+    // println!("{:?}", tokens);
     // let mut terminal = tui::init()?;
     // let app_result = app::App::default().run(&mut terminal);
     // tui::restore()?;
