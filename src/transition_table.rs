@@ -67,6 +67,7 @@ pub fn build_transition_table() -> HashMap<(State, Input), State> {
 
     insert_start_states(&mut table);
     insert_id_states(&mut table);
+    insert_sub_block_pre_type_states(&mut table);
     insert_sub_block_type_states(&mut table);
 
     table
@@ -106,7 +107,7 @@ fn insert_id_states(table: &mut HashMap<(State, Input), State>) {
     table.insert((State::Id, Input::Error), State::Error);
 }
 
-fn insert_sub_block_type_states(table: &mut HashMap<(State, Input), State>) {
+fn insert_sub_block_pre_type_states(table: &mut HashMap<(State, Input), State>) {
     table.insert((State::SBTPre, Input::Character), State::SBT);
     table.insert((State::SBTPre, Input::NewLine), State::Error);
     table.insert((State::SBTPre, Input::Whitespace), State::Error);
@@ -119,6 +120,21 @@ fn insert_sub_block_type_states(table: &mut HashMap<(State, Input), State>) {
     table.insert((State::SBTPre, Input::Dot), State::Error);
     table.insert((State::SBTPre, Input::Underscore), State::Error);
     table.insert((State::SBTPre, Input::Error), State::Error);
+}
+
+fn insert_sub_block_type_states(table: &mut HashMap<(State, Input), State>) {
+    table.insert((State::SBT, Input::Character), State::SBT);
+    table.insert((State::SBT, Input::NewLine), State::SBTEnd);
+    table.insert((State::SBT, Input::Whitespace), State::SBTEnd);
+    table.insert((State::SBT, Input::DoubleQuote), State::SBTEnd);
+    table.insert((State::SBT, Input::LeftCurlyBrace), State::SBTEnd);
+    table.insert((State::SBT, Input::RightCurlyBrace), State::SBTEnd);
+    table.insert((State::SBT, Input::Hashtag), State::SBTEnd);
+    table.insert((State::SBT, Input::Digit), State::SBTEnd);
+    table.insert((State::SBT, Input::Colon), State::SBTEnd);
+    table.insert((State::SBT, Input::Dot), State::SBTEnd);
+    table.insert((State::SBT, Input::Underscore), State::SBTEnd);
+    table.insert((State::SBT, Input::Error), State::Error);
 }
 
 #[cfg(test)]
@@ -194,7 +210,7 @@ mod tests {
     }
 
     #[test]
-    fn should_insert_sub_block_type_states() {
+    fn should_insert_sub_block_pre_type_states() {
         let mut table = HashMap::new();
         let expected = vec![
             ((State::SBTPre, Input::Character), State::SBT),
@@ -209,6 +225,27 @@ mod tests {
             ((State::SBTPre, Input::Dot), State::Error),
             ((State::SBTPre, Input::Underscore), State::Error),
             ((State::SBTPre, Input::Error), State::Error),
+        ];
+        insert_sub_block_pre_type_states(&mut table);
+        verify_result(&table, expected);
+    }
+
+    #[test]
+    fn should_insert_sub_block_type_states() {
+        let mut table = HashMap::new();
+        let expected = vec![
+            ((State::SBT, Input::Character), State::SBT),
+            ((State::SBT, Input::NewLine), State::SBTEnd),
+            ((State::SBT, Input::Whitespace), State::SBTEnd),
+            ((State::SBT, Input::DoubleQuote), State::SBTEnd),
+            ((State::SBT, Input::LeftCurlyBrace), State::SBTEnd),
+            ((State::SBT, Input::RightCurlyBrace), State::SBTEnd),
+            ((State::SBT, Input::Hashtag), State::SBTEnd),
+            ((State::SBT, Input::Digit), State::SBTEnd),
+            ((State::SBT, Input::Colon), State::SBTEnd),
+            ((State::SBT, Input::Dot), State::SBTEnd),
+            ((State::SBT, Input::Underscore), State::SBTEnd),
+            ((State::SBT, Input::Error), State::Error),
         ];
         insert_sub_block_type_states(&mut table);
         verify_result(&table, expected);
