@@ -30,6 +30,14 @@ S - (.)
     - (*) -> End (Error)
 ```
 
+To read an identifier for a block (block identifiers are optional), using `::`
+
+```
+S - (:) -> Expected Follow Up Colon
+    - (:) -> Expected Identifier - (*) -> End (Error)
+    - (A..Z,-) -> Read Identifier - (*) -> End (Identifier)
+```
+
 ## Reading Digit (Single digit only)
 
 ```
