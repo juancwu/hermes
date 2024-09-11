@@ -73,6 +73,22 @@ pub fn build_transition_table() -> HashMap<(State, Input), State> {
     table
 }
 
+pub fn is_transitional_state(state: State) -> bool {
+    match state {
+        State::Start => true,
+        State::Id => true,
+        State::SBT => true,
+        State::SBTPre => true,
+        State::Str => true,
+        State::StrPre => true,
+        State::EscStr => true,
+        State::RawStrPrePre => true,
+        State::RawStrPre => true,
+        State::Comment => true,
+        _ => false,
+    }
+}
+
 fn insert_start_states(table: &mut HashMap<(State, Input), State>) {
     table.insert((State::Start, Input::Character), State::Id);
     table.insert((State::Start, Input::NewLine), State::Start);
@@ -249,5 +265,38 @@ mod tests {
         ];
         insert_sub_block_type_states(&mut table);
         verify_result(&table, expected);
+    }
+
+    #[test]
+    fn should_return_true_for_transitional_states() {
+        let values = vec![
+            (State::Start, true),
+            (State::Id, true),
+            (State::IdEnd, false),
+            (State::SBT, true),
+            (State::SBTPre, true),
+            (State::SBTEnd, false),
+            (State::FirstColon, false),
+            (State::DoubleColon, false),
+            (State::LeftCurlyBrace, false),
+            (State::RightCurlyBrace, false),
+            (State::Digit, false),
+            (State::Str, true),
+            (State::StrPre, true),
+            (State::StrEnd, false),
+            (State::EscStr, true),
+            (State::RawStrPrePre, true),
+            (State::RawStrPre, true),
+            (State::RawStr, false),
+            (State::Comment, true),
+            (State::CommentEnd, false),
+            (State::Error, false),
+        ];
+
+        for value in values {
+            let (state, expected) = value;
+            let result = is_transitional_state(state);
+            assert_eq!(expected, result, "Testing state {:?}", state);
+        }
     }
 }
