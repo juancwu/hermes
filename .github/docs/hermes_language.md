@@ -1,4 +1,60 @@
-# Grammar Definition
+# Hermes Language
+
+A way to define requests and collections for Hermes API client.
+
+## Language Block Summary
+
+-   Block Type
+-   SubBlock Type
+-   Identifier
+-   Digit
+-   Value
+    -   Single Line Value
+    -   Multi-line value (raw)
+
+## Reading Block Type, SubBlock Type, and Identifier
+
+Blocks just identifiers. Reading them can be treated as such too.
+
+```
+S - (A..Z,-)
+    -> Read Block/Identifier - (*) -> End (Block/Identifier)
+```
+
+Then, sub block types need to be treated differently for the sake of making
+parsing and syntax analyzing easier.
+
+```
+S - (.)
+    -> Expect Read Sub Block Type - (A..Z,-) -> Read Sub Block Type - (*) -> End (Sub Block Type)
+    - (*) -> End (Error)
+```
+
+## Reading Digit (Single digit only)
+
+```
+S - (0..9) -> End (Digit)
+```
+
+## Reading Value (Single or Multi line)
+
+Single line value consist of starting double quotes and must end with double quotes.
+
+```
+S - (") -> Expected character or double quote
+    -> Single Line Value - (anything but double quotes) -> Loop back
+    -> Single Line Value - (") -> End (Single Line Value)
+    -> Single Line Value - (backslash) -> Escape Character - (*) -> Single Line Value
+```
+
+```
+S - (`) -> Expected anything or tilt
+    -> Multi Line Value - (anything but tilt) -> Loop back
+    -> Multi Line Value - (tilt) -> End (Multi Line Value)
+    -> Multi Line Value - (backslash) -> Escape Character - (*) -> Multi Line Value
+```
+
+## Proper Language Definition
 
 Alright, lets re-define this whole this, again.
 
@@ -30,12 +86,12 @@ A `block-type` is built-in keywords of the type of block being defined.
 
 Full list of `block-type`:
 
-- collection
-- request
-- headers
-- queries
-- environment
-- body
+-   collection
+-   request
+-   headers
+-   queries
+-   environment
+-   body
 
 A `sub-type` is an extension of a `block-type` that further defines how the block should be read.
 As of now, only the `body` and `environment` block has extended type. More on that in below.
