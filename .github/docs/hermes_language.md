@@ -15,6 +15,7 @@ A way to define requests and collections for Hermes API client.
 ## Reading Block Type, SubBlock Type, and Identifier
 
 Blocks just identifiers. Reading them can be treated as such too.
+A block's data is stored in a hash map and it will contain the tokens themselves `HashMap<Token, (u8, Token)>`
 
 ```
 S - (A..Z,-)
@@ -61,6 +62,11 @@ S - (`) -> Expected anything or tilt
     -> Multi Line Value - (tilt) -> End (Multi Line Value)
     -> Multi Line Value - (backslash) -> Escape Character - (*) -> Multi Line Value
 ```
+
+## Reading delimeters
+
+When encounting a delimeter, the transitional table will immediately direct to the end
+state that yields the delimeter.
 
 ## Proper Language Definition
 
