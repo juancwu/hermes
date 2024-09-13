@@ -208,7 +208,7 @@ fn insert_expect_follow_up_colon_states(table: &mut HashMap<(State, Input), Stat
 
 fn insert_expect_identifier_states(table: &mut HashMap<(State, Input), State>) {
     table.insert(
-        ((State::ExpectIdentifier, Input::Character)),
+        (State::ExpectIdentifier, Input::Character),
         State::ReadIdentifier,
     );
 }
