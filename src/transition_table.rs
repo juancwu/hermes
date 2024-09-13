@@ -87,7 +87,10 @@ pub fn is_transitional_state(state: State) -> bool {
         | State::ReadIdentifier
         | State::ReadSubBlockType
         | State::ReadString
-        | State::ReadEscapedCharacter => true,
+        | State::ReadEscapedCharacter
+        | State::ExpectSubBlockType
+        | State::ExpectFollowUpColon
+        | State::ExpectIdentifier => true,
         _ => false,
     }
 }
@@ -313,12 +316,15 @@ mod tests {
     fn should_check_state_is_transitional() {
         let states = vec![
             // transitional
+            (State::Start, true),
             (State::ReadIdentifier, true),
             (State::ReadEscapedCharacter, true),
             (State::ReadString, true),
             (State::ReadSubBlockType, true),
+            (State::ExpectIdentifier, true),
+            (State::ExpectFollowUpColon, true),
+            (State::ExpectSubBlockType, true),
             // non-transitional
-            (State::Start, false),
             (State::EndLeftCurlyBrace, false),
             (State::EndRightCurlyBrace, false),
             (State::EndDigit, false),
