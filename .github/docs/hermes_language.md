@@ -204,6 +204,7 @@ The syntax analyzer would be the one doing the heavy lifting in making sense of 
 - BlockType(String)
 - SubBlockType(String)
 - Identifier(String): this can be an identifier for a block or a field.
+- AsKeyword
 - Digit(u8): it is an usigned 8bit integer since the only digits that should appear are 1 or 0.
 - StringValue(String)
 - Delimeter(char)
