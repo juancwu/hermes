@@ -1,7 +1,9 @@
-use std::collections::HashMap;
 use std::str::Chars;
+use std::{collections::HashMap, io};
 
-use crate::transition_table::{build_transition_table, char_to_input, Input, State};
+use crate::transition_table::{
+    build_transition_table, char_to_input, is_transitional_state, Input, State,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -17,6 +19,7 @@ pub enum Token {
     VariablesBlock,
     CollectionBlock,
     FolderBlock,
+    BlockSubType(String),
     /// Typical identifier in any language. This will mostly just be
     /// block names that are used to reference to defined blocks or for reserved keywords.
     ///
@@ -33,7 +36,7 @@ pub enum Token {
     Identifier(String),
     /// Refers to any raw value read from a hermes file. For example, the JSON body string would be
     /// a raw value, as well as the value of a query parameter.
-    RawValue(String),
+    StringValue(String),
     /// Some blocks such as headers, queries, form-urlencoded, and mutipart-form can have enabled
     /// fields which are included in the request.
     StateEnabled,
@@ -71,13 +74,38 @@ impl<'a> Lexer<'a> {
         // Fill lookahead
         lexer.advance();
         // reset the end index after populating the current and lookahead characters.
-        lexer.end_index = 0;
+        lexer.end_index = 1;
         lexer
     }
 
     /// Grab the next token that can be identified in the input.
     pub fn next_token(&mut self) -> Option<Token> {
+        if self.current_char.is_none() {
+            return None;
+        }
         self.skip_whitespaces_or_newline();
+
+        let mut ch = self.current_char.unwrap();
+        let mut input = char_to_input(ch);
+        let mut state = self.get_next_state(State::Start, input);
+
+        while is_transitional_state(state) {
+            self.advance();
+            if self.current_char.is_some() {
+                ch = self.current_char.unwrap();
+                input = char_to_input(ch);
+                state = self.get_next_state(state, input);
+            } else {
+                // EOF
+                state = State::EOF;
+            }
+        }
+
+        println!(
+            "literal: {:?}",
+            self.input.get(self.start_index..self.end_index - 1)
+        );
+
         None
     }
 
@@ -100,14 +128,26 @@ impl<'a> Lexer<'a> {
             }
         }
         // set the starting pointer to the end now after skipping through whitespaces and newlines.
-        self.start_index = self.end_index;
+        self.reset_slice_pointers();
     }
 
-    /// Gets the raw read input that the next_token has read.
-    fn get_raw_string(&self) -> String {
-        let source = &self.input[self.start_index..self.end_index];
-        let raw = String::from(source);
-        raw
+    fn get_next_state(&self, state: State, input: Input) -> State {
+        match self.transition_table.get(&(state, input)) {
+            Some(s) => *s,
+            None => State::Error,
+        }
+    }
+
+    fn get_literal(&self, s: usize, e: usize) -> &str {
+        let slice = match self.input.get(s..e) {
+            Some(s) => s,
+            None => "",
+        };
+        slice
+    }
+
+    fn reset_slice_pointers(&mut self) {
+        self.start_index = self.end_index - 1;
     }
 
     fn match_identifier_to_keyword(&self, identifier: String) -> Token {

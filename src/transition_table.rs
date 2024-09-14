@@ -30,6 +30,8 @@ pub enum State {
     EndLeftCurlyBrace,
     EndRightCurlyBrace,
 
+    EOF,
+
     Error,
 }
 
@@ -46,6 +48,7 @@ pub enum Input {
     Colon,
     Dot,
     Other,
+    EOF,
 }
 
 /// Match the given character with an Input type to use with a transition table.
@@ -331,6 +334,8 @@ mod tests {
             (State::EndIdentifier, false),
             (State::EndSubBlockType, false),
             (State::EndString, false),
+            (State::EOF, false),
+            (State::Error, false),
         ];
         for pair in states {
             let (state, expected) = pair;

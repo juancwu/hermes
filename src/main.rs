@@ -43,20 +43,21 @@ fn main() {
     // "#,
     // );
     // println!("{:?}", tokens);
-    // let mut terminal = tui::init()?;
+    // let mut terminal = tui:: lginit()?;
     // let app_result = app::App::default().run(&mut terminal);
     // tui::restore()?;
     // app_result
     //
-    let input = r#"
-        body.json::json {
-            value 1 _"{
-                "name": {
-                    "first": "Juan",
-                    "last": "Wu"
-                }
-            }"_
-        }
-    "#;
+    // let input = r#"
+    //     body.json::json {
+    //         value 1 `{
+    //             "name": {
+    //                 "first": "Juan",
+    //                 "last": "Wu"
+    //             }
+    //         }`
+    //     }
+    // "#;
+    let input = "body";
     parser::parse(input);
 }
