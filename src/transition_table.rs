@@ -116,6 +116,7 @@ fn insert_start_states(table: &mut HashMap<(State, Input), State>) {
         (State::Start, Input::RightCurlyBrace),
         State::EndRightCurlyBrace,
     );
+    table.insert((State::Start, Input::EOF), State::EOF);
 }
 
 fn insert_read_identifier_states(table: &mut HashMap<(State, Input), State>) {
@@ -368,6 +369,7 @@ mod tests {
                 (State::Start, Input::RightCurlyBrace),
                 State::EndRightCurlyBrace,
             ),
+            ((State::Start, Input::EOF), State::EOF),
         ];
         let mut table: HashMap<(State, Input), State> = HashMap::new();
         insert_start_states(&mut table);
