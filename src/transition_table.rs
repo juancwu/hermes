@@ -1,37 +1,57 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, slice::Iter};
 
 /// ! Missing entries in the transition table
 /// ! means that the (State, Input) combination results in State::Error
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum State {
+    /// Start state, this is where the FSM will decide which direction it will go to.
     Start,
 
+    /// An identifier acts just like any identifier in any programming language. Since there is
+    /// also block types, reading them its just like reading an identifier and later the literal is
+    /// matched against a list of block types which will decide whether it is just a normal
+    /// identifier or a block type.
     ReadIdentifier,
+    /// The end state when reading an identifier.
     EndIdentifier,
 
-    ExpectSubBlockType,
+    /// This states would captured the same stuff as ReadIdentifier but includes the initial "."
+    /// which will make it able to differentiate between reserve keywords/identifiers for sub block
+    /// types in the literal pattern matching.
     ReadSubBlockType,
+    /// The end state when reading a sub block type.
     EndSubBlockType,
 
+    /// A special identifier is an identifier wrapped in double quotes which allows spaces and
+    /// start with numbers which is not allowed in normal identifiers.
+    ReadSpecialIdentifier,
+    /// The end state when reading a special identifier.
+    EndSpecialIdentifier,
+
+    /// The can only be single digits in the Hermes language so right from the Start state when
+    /// a digit is encountered, it goes to the end state to extract the literal.
     EndDigit,
 
-    // Read a block identifier which starts with two colons
-    ExpectFollowUpColon,
-    ExpectIdentifier,
-
-    // String value that starts with a tilt
+    /// String value that starts with a tilt and ends with a tilt. A string value allows multiple
+    /// lines.
     ReadString,
+    /// The end state when reading a string value.
     EndString,
 
+    /// This is a special state that will accept any character after a backslash when reading
+    /// a string value. There is no end state because once the next character is read, it will just
+    /// go back to complete the read on the string value.
     ReadEscapedCharacter,
 
-    // delimeters
-    EndLeftCurlyBrace,
-    EndRightCurlyBrace,
+    /// Delimeters are single character entries, just like digits, they not need any intermediate
+    /// state to complete the read.
+    EndDelimeter,
 
+    /// End of File state
     EOF,
 
+    /// Error state, something unknown or unexpected happened during a read.
     Error,
 }
 
@@ -40,15 +60,37 @@ pub enum Input {
     NewLine,
     Whitespace,
     Character,
-    LeftCurlyBrace,
-    RightCurlyBrace,
+    Phiten,
+    Underscore,
+    Delimeter,
+    Dot,
     Tilt,
     Backslash,
     Digit,
-    Colon,
-    Dot,
+    DoubleQuote,
     Other,
     EOF,
+}
+
+impl Input {
+    pub fn iterator() -> Iter<'static, Input> {
+        static INPUTS: [Input; 13] = [
+            Input::NewLine,
+            Input::Whitespace,
+            Input::Character,
+            Input::Phiten,
+            Input::Underscore,
+            Input::Delimeter,
+            Input::Dot,
+            Input::Tilt,
+            Input::Backslash,
+            Input::Digit,
+            Input::DoubleQuote,
+            Input::Other,
+            Input::EOF,
+        ];
+        INPUTS.iter()
+    }
 }
 
 /// Match the given character with an Input type to use with a transition table.
@@ -56,14 +98,16 @@ pub fn char_to_input(ch: char) -> Input {
     match ch {
         ' ' | '\t' => Input::Whitespace,
         '\n' => Input::NewLine,
-        'a'..='z' | 'A'..'Z' | '-' => Input::Character,
-        '{' => Input::LeftCurlyBrace,
-        '}' => Input::RightCurlyBrace,
+        'a'..='z' | 'A'..'Z' => Input::Character,
+        '-' => Input::Phiten,
+        '_' => Input::Underscore,
+        '{' | '}' => Input::Delimeter,
+        '.' => Input::Dot,
         '`' => Input::Tilt,
         '\\' => Input::Backslash,
         '0'..='9' => Input::Digit,
-        ':' => Input::Colon,
-        '.' => Input::Dot,
+        '"' => Input::DoubleQuote,
+        '\0' => Input::EOF,
         _ => Input::Other,
     }
 }
@@ -74,12 +118,10 @@ pub fn build_transition_table() -> HashMap<(State, Input), State> {
 
     insert_start_states(&mut table);
     insert_read_identifier_states(&mut table);
-    insert_expect_sub_block_type_states(&mut table);
-    insert_read_sub_block_type_states(&mut table);
-    insert_expect_follow_up_colon_states(&mut table);
-    insert_expect_identifier_states(&mut table);
+    insert_read_special_identifier_states(&mut table);
     insert_read_string_states(&mut table);
     insert_read_escaped_character_states(&mut table);
+    insert_read_sub_block_type_states(&mut table);
 
     table
 }
@@ -89,206 +131,142 @@ pub fn is_transitional_state(state: State) -> bool {
         State::Start
         | State::ReadIdentifier
         | State::ReadSubBlockType
+        | State::ReadSpecialIdentifier
         | State::ReadString
-        | State::ReadEscapedCharacter
-        | State::ExpectSubBlockType
-        | State::ExpectFollowUpColon
-        | State::ExpectIdentifier => true,
+        | State::ReadEscapedCharacter => true,
         _ => false,
     }
 }
 
 fn insert_start_states(table: &mut HashMap<(State, Input), State>) {
-    table.insert((State::Start, Input::Character), State::ReadIdentifier);
-    table.insert((State::Start, Input::Dot), State::ExpectSubBlockType);
-    table.insert((State::Start, Input::Digit), State::EndDigit);
-    table.insert((State::Start, Input::Colon), State::ExpectFollowUpColon);
-    table.insert((State::Start, Input::Tilt), State::ReadString);
-    // initial white spaces
-    table.insert((State::Start, Input::Whitespace), State::Start);
-    table.insert((State::Start, Input::NewLine), State::Start);
-    // delimeters
-    table.insert(
-        (State::Start, Input::LeftCurlyBrace),
-        State::EndLeftCurlyBrace,
-    );
-    table.insert(
-        (State::Start, Input::RightCurlyBrace),
-        State::EndRightCurlyBrace,
-    );
-    table.insert((State::Start, Input::EOF), State::EOF);
+    for input in Input::iterator() {
+        let next_state = match input {
+            Input::NewLine => State::Start,
+            Input::Whitespace => State::Start,
+            Input::Character => State::ReadIdentifier,
+            Input::Underscore => State::ReadIdentifier,
+            Input::Delimeter => State::EndDelimeter,
+            Input::Dot => State::ReadSubBlockType,
+            Input::Digit => State::EndDigit,
+            Input::DoubleQuote => State::ReadSpecialIdentifier,
+            Input::Phiten => State::Error,
+            Input::Backslash => State::Error,
+            Input::Tilt => State::ReadString,
+            Input::EOF => State::EOF,
+            Input::Other => State::Error,
+        };
+        table.insert((State::Start, *input), next_state);
+    }
 }
 
 fn insert_read_identifier_states(table: &mut HashMap<(State, Input), State>) {
-    // loop back state
-    table.insert(
-        (State::ReadIdentifier, Input::Character),
-        State::ReadIdentifier,
-    );
-    table.insert((State::ReadIdentifier, Input::Dot), State::EndIdentifier);
-    table.insert((State::ReadIdentifier, Input::Digit), State::EndIdentifier);
-    table.insert((State::ReadIdentifier, Input::Colon), State::EndIdentifier);
-    table.insert((State::ReadIdentifier, Input::Tilt), State::EndIdentifier);
-    // initial white spaces
-    table.insert(
-        (State::ReadIdentifier, Input::Whitespace),
-        State::EndIdentifier,
-    );
-    table.insert(
-        (State::ReadIdentifier, Input::NewLine),
-        State::EndIdentifier,
-    );
-    // delimeters
-    table.insert(
-        (State::ReadIdentifier, Input::LeftCurlyBrace),
-        State::EndIdentifier,
-    );
-    table.insert(
-        (State::ReadIdentifier, Input::RightCurlyBrace),
-        State::EndIdentifier,
-    );
-    table.insert(
-        (State::ReadIdentifier, Input::Backslash),
-        State::EndIdentifier,
-    );
-    table.insert((State::ReadIdentifier, Input::Other), State::EndIdentifier);
+    for input in Input::iterator() {
+        let next_state = match input {
+            Input::NewLine => State::EndIdentifier,
+            Input::Whitespace => State::EndIdentifier,
+            Input::Character => State::ReadIdentifier,
+            Input::Underscore => State::ReadIdentifier,
+            Input::Delimeter => State::EndIdentifier,
+            Input::Dot => State::EndIdentifier,
+            Input::Digit => State::ReadIdentifier,
+            Input::DoubleQuote => State::EndIdentifier,
+            Input::Phiten => State::ReadIdentifier,
+            Input::Backslash => State::EndIdentifier,
+            Input::Tilt => State::EndIdentifier,
+            Input::EOF => State::EndIdentifier,
+            Input::Other => State::EndIdentifier,
+        };
+        table.insert((State::ReadIdentifier, *input), next_state);
+    }
 }
 
-fn insert_expect_sub_block_type_states(table: &mut HashMap<(State, Input), State>) {
-    table.insert(
-        (State::ExpectSubBlockType, Input::Character),
-        State::ReadSubBlockType,
-    );
+fn insert_read_special_identifier_states(table: &mut HashMap<(State, Input), State>) {
+    for input in Input::iterator() {
+        let next_state = match input {
+            Input::NewLine => State::EndSpecialIdentifier,
+            Input::Whitespace => State::ReadSpecialIdentifier,
+            Input::Character => State::ReadSpecialIdentifier,
+            Input::Underscore => State::ReadSpecialIdentifier,
+            Input::Delimeter => State::EndSpecialIdentifier,
+            Input::Dot => State::EndSpecialIdentifier,
+            Input::Digit => State::ReadSpecialIdentifier,
+            Input::DoubleQuote => State::EndSpecialIdentifier,
+            Input::Phiten => State::ReadSpecialIdentifier,
+            Input::Backslash => State::EndSpecialIdentifier,
+            Input::Tilt => State::EndSpecialIdentifier,
+            Input::EOF => State::EndSpecialIdentifier,
+            Input::Other => State::EndSpecialIdentifier,
+        };
+        table.insert((State::ReadSpecialIdentifier, *input), next_state);
+    }
 }
-
-fn insert_read_sub_block_type_states(table: &mut HashMap<(State, Input), State>) {
-    // loop back state
-    table.insert(
-        (State::ReadSubBlockType, Input::Character),
-        State::ReadSubBlockType,
-    );
-    table.insert(
-        (State::ReadSubBlockType, Input::Dot),
-        State::EndSubBlockType,
-    );
-    table.insert(
-        (State::ReadSubBlockType, Input::Digit),
-        State::EndSubBlockType,
-    );
-    table.insert(
-        (State::ReadSubBlockType, Input::Colon),
-        State::EndSubBlockType,
-    );
-    table.insert(
-        (State::ReadSubBlockType, Input::Tilt),
-        State::EndSubBlockType,
-    );
-    // initial white spaces
-    table.insert(
-        (State::ReadSubBlockType, Input::Whitespace),
-        State::EndSubBlockType,
-    );
-    table.insert(
-        (State::ReadSubBlockType, Input::NewLine),
-        State::EndSubBlockType,
-    );
-    // delimeters
-    table.insert(
-        (State::ReadSubBlockType, Input::LeftCurlyBrace),
-        State::EndSubBlockType,
-    );
-    table.insert(
-        (State::ReadSubBlockType, Input::RightCurlyBrace),
-        State::EndSubBlockType,
-    );
-}
-
-fn insert_expect_follow_up_colon_states(table: &mut HashMap<(State, Input), State>) {
-    table.insert(
-        (State::ExpectFollowUpColon, Input::Colon),
-        State::ExpectIdentifier,
-    );
-}
-
-fn insert_expect_identifier_states(table: &mut HashMap<(State, Input), State>) {
-    table.insert(
-        (State::ExpectIdentifier, Input::Character),
-        State::ReadIdentifier,
-    );
-}
-
 fn insert_read_string_states(table: &mut HashMap<(State, Input), State>) {
-    table.insert((State::ReadString, Input::Character), State::ReadString);
-    table.insert((State::ReadString, Input::Digit), State::ReadString);
-    table.insert(
-        (State::ReadString, Input::LeftCurlyBrace),
-        State::ReadString,
-    );
-    table.insert(
-        (State::ReadString, Input::RightCurlyBrace),
-        State::ReadString,
-    );
-    table.insert((State::ReadString, Input::Whitespace), State::ReadString);
-    table.insert((State::ReadString, Input::NewLine), State::ReadString);
-    table.insert((State::ReadString, Input::Tilt), State::EndString);
-    table.insert((State::ReadString, Input::Colon), State::ReadString);
-    table.insert((State::ReadString, Input::Dot), State::ReadString);
-    table.insert((State::ReadString, Input::Other), State::ReadString);
-    table.insert(
-        (State::ReadString, Input::Backslash),
-        State::ReadEscapedCharacter,
-    );
+    for input in Input::iterator() {
+        let next_state = match input {
+            Input::NewLine => State::ReadString,
+            Input::Whitespace => State::ReadString,
+            Input::Character => State::ReadString,
+            Input::Underscore => State::ReadString,
+            Input::Delimeter => State::ReadString,
+            Input::Dot => State::ReadString,
+            Input::Digit => State::ReadString,
+            Input::DoubleQuote => State::ReadString,
+            Input::Phiten => State::ReadString,
+            Input::Backslash => State::ReadEscapedCharacter,
+            Input::Tilt => State::EndString,
+            Input::EOF => State::EndString,
+            Input::Other => State::ReadString,
+        };
+        table.insert((State::ReadString, *input), next_state);
+    }
 }
 
 fn insert_read_escaped_character_states(table: &mut HashMap<(State, Input), State>) {
-    table.insert(
-        (State::ReadEscapedCharacter, Input::Character),
-        State::ReadString,
-    );
-    table.insert((State::ReadEscapedCharacter, Input::Dot), State::ReadString);
-    table.insert(
-        (State::ReadEscapedCharacter, Input::Digit),
-        State::ReadString,
-    );
-    table.insert(
-        (State::ReadEscapedCharacter, Input::Colon),
-        State::ReadString,
-    );
-    table.insert(
-        (State::ReadEscapedCharacter, Input::Tilt),
-        State::ReadString,
-    );
-    // initial white spaces
-    table.insert(
-        (State::ReadEscapedCharacter, Input::Whitespace),
-        State::ReadString,
-    );
-    table.insert(
-        (State::ReadEscapedCharacter, Input::NewLine),
-        State::ReadString,
-    );
-    // delimeters
-    table.insert(
-        (State::ReadEscapedCharacter, Input::LeftCurlyBrace),
-        State::ReadString,
-    );
-    table.insert(
-        (State::ReadEscapedCharacter, Input::RightCurlyBrace),
-        State::ReadString,
-    );
-    table.insert(
-        (State::ReadEscapedCharacter, Input::Backslash),
-        State::ReadString,
-    );
-    table.insert(
-        (State::ReadEscapedCharacter, Input::Other),
-        State::ReadString,
-    );
+    for input in Input::iterator() {
+        let next_state = match input {
+            Input::NewLine => State::ReadString,
+            Input::Whitespace => State::ReadString,
+            Input::Character => State::ReadString,
+            Input::Underscore => State::ReadString,
+            Input::Delimeter => State::ReadString,
+            Input::Dot => State::ReadString,
+            Input::Digit => State::ReadString,
+            Input::DoubleQuote => State::ReadString,
+            Input::Phiten => State::ReadString,
+            Input::Backslash => State::ReadString,
+            Input::Tilt => State::ReadString,
+            Input::EOF => State::EndString,
+            Input::Other => State::ReadString,
+        };
+        table.insert((State::ReadEscapedCharacter, *input), next_state);
+    }
+}
+
+fn insert_read_sub_block_type_states(table: &mut HashMap<(State, Input), State>) {
+    for input in Input::iterator() {
+        let next_state = match input {
+            Input::NewLine => State::EndSubBlockType,
+            Input::Whitespace => State::EndSubBlockType,
+            Input::Character => State::ReadSubBlockType,
+            Input::Underscore => State::ReadSubBlockType,
+            Input::Delimeter => State::EndSubBlockType,
+            Input::Dot => State::EndSubBlockType,
+            Input::Digit => State::ReadSubBlockType,
+            Input::DoubleQuote => State::EndSubBlockType,
+            Input::Phiten => State::ReadSubBlockType,
+            Input::Backslash => State::EndSubBlockType,
+            Input::Tilt => State::EndSubBlockType,
+            Input::EOF => State::EndSubBlockType,
+            Input::Other => State::EndSubBlockType,
+        };
+        table.insert((State::ReadSubBlockType, *input), next_state);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use core::panic;
+    use std::vec;
 
     use super::*;
 
@@ -307,277 +285,200 @@ mod tests {
                     );
                 }
                 None => {
-                    panic!(
-                        "Unexpected state for {:?}. Expecting {:?}",
-                        key, expected_state
-                    );
+                    panic!("No state for {:?}. Expecting {:?}", key, expected_state);
                 }
             }
         }
     }
 
     #[test]
-    fn should_check_state_is_transitional() {
-        let states = vec![
-            // transitional
+    fn should_determine_right_transitional_state() {
+        let test_cases = vec![
             (State::Start, true),
             (State::ReadIdentifier, true),
-            (State::ReadEscapedCharacter, true),
-            (State::ReadString, true),
-            (State::ReadSubBlockType, true),
-            (State::ExpectIdentifier, true),
-            (State::ExpectFollowUpColon, true),
-            (State::ExpectSubBlockType, true),
-            // non-transitional
-            (State::EndLeftCurlyBrace, false),
-            (State::EndRightCurlyBrace, false),
-            (State::EndDigit, false),
             (State::EndIdentifier, false),
+            (State::ReadSubBlockType, true),
             (State::EndSubBlockType, false),
+            (State::ReadString, true),
             (State::EndString, false),
+            (State::ReadEscapedCharacter, true),
+            (State::ReadSpecialIdentifier, true),
+            (State::EndSpecialIdentifier, false),
+            (State::EndDelimeter, false),
+            (State::EndDigit, false),
             (State::EOF, false),
             (State::Error, false),
         ];
-        for pair in states {
-            let (state, expected) = pair;
+        for case in test_cases {
+            let (state, expected) = case;
             let result = is_transitional_state(state);
             assert_eq!(
                 expected, result,
-                "Is state {:?} transitional? Expected: {}, Got: {}",
-                state, expected, result
+                "Failed to determine correct transitional state. Expecting {}, received: {}",
+                expected, result
             );
         }
     }
 
     #[test]
     fn should_insert_start_states() {
-        let expected = vec![
-            ((State::Start, Input::Character), State::ReadIdentifier),
-            ((State::Start, Input::Dot), State::ExpectSubBlockType),
-            ((State::Start, Input::Digit), State::EndDigit),
-            ((State::Start, Input::Colon), State::ExpectFollowUpColon),
-            ((State::Start, Input::Tilt), State::ReadString),
-            // initial white spaces
-            ((State::Start, Input::Whitespace), State::Start),
-            ((State::Start, Input::NewLine), State::Start),
-            // delimeters
-            (
-                (State::Start, Input::LeftCurlyBrace),
-                State::EndLeftCurlyBrace,
-            ),
-            (
-                (State::Start, Input::RightCurlyBrace),
-                State::EndRightCurlyBrace,
-            ),
-            ((State::Start, Input::EOF), State::EOF),
-        ];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
+        let mut states: Vec<((State, Input), State)> = Vec::new();
+        let state = State::Start;
+        for input in Input::iterator() {
+            let next_state = match input {
+                Input::NewLine => State::Start,
+                Input::Whitespace => State::Start,
+                Input::Character => State::ReadIdentifier,
+                Input::Underscore => State::ReadIdentifier,
+                Input::Delimeter => State::EndDelimeter,
+                Input::Dot => State::ReadSubBlockType,
+                Input::Digit => State::EndDigit,
+                Input::DoubleQuote => State::ReadSpecialIdentifier,
+                Input::Phiten => State::Error,
+                Input::Backslash => State::Error,
+                Input::Tilt => State::ReadString,
+                Input::EOF => State::EOF,
+                Input::Other => State::Error,
+            };
+            states.push(((state, *input), next_state));
+        }
+        let mut table = HashMap::new();
         insert_start_states(&mut table);
-        verify_result(&table, expected);
+        verify_result(&table, states);
     }
 
     #[test]
     fn should_insert_read_identifier_states() {
-        let expected = vec![
-            // loop back state
-            (
-                (State::ReadIdentifier, Input::Character),
-                State::ReadIdentifier,
-            ),
-            ((State::ReadIdentifier, Input::Dot), State::EndIdentifier),
-            ((State::ReadIdentifier, Input::Digit), State::EndIdentifier),
-            ((State::ReadIdentifier, Input::Colon), State::EndIdentifier),
-            ((State::ReadIdentifier, Input::Tilt), State::EndIdentifier),
-            // initial white spaces
-            (
-                (State::ReadIdentifier, Input::Whitespace),
-                State::EndIdentifier,
-            ),
-            (
-                (State::ReadIdentifier, Input::NewLine),
-                State::EndIdentifier,
-            ),
-            // delimeters
-            (
-                (State::ReadIdentifier, Input::LeftCurlyBrace),
-                State::EndIdentifier,
-            ),
-            (
-                (State::ReadIdentifier, Input::RightCurlyBrace),
-                State::EndIdentifier,
-            ),
-            (
-                (State::ReadIdentifier, Input::Backslash),
-                State::EndIdentifier,
-            ),
-            ((State::ReadIdentifier, Input::Other), State::EndIdentifier),
-        ];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
+        let mut states: Vec<((State, Input), State)> = Vec::new();
+        let state = State::ReadIdentifier;
+        for input in Input::iterator() {
+            let next_state = match input {
+                Input::NewLine => State::EndIdentifier,
+                Input::Whitespace => State::EndIdentifier,
+                Input::Character => State::ReadIdentifier,
+                Input::Underscore => State::ReadIdentifier,
+                Input::Delimeter => State::EndIdentifier,
+                Input::Dot => State::EndIdentifier,
+                Input::Digit => State::ReadIdentifier,
+                Input::DoubleQuote => State::EndIdentifier,
+                Input::Phiten => State::ReadIdentifier,
+                Input::Backslash => State::EndIdentifier,
+                Input::Tilt => State::EndIdentifier,
+                Input::EOF => State::EndIdentifier,
+                Input::Other => State::EndIdentifier,
+            };
+            states.push(((state, *input), next_state));
+        }
+        let mut table = HashMap::new();
         insert_read_identifier_states(&mut table);
-        verify_result(&table, expected);
+        verify_result(&table, states);
     }
 
     #[test]
-    fn should_insert_expect_sub_block_type_states() {
-        let expected = vec![(
-            (State::ExpectSubBlockType, Input::Character),
-            State::ReadSubBlockType,
-        )];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
-        insert_expect_sub_block_type_states(&mut table);
-        verify_result(&table, expected);
-    }
-
-    #[test]
-    fn should_insert_sub_block_type_states() {
-        let expected = vec![
-            // loop back state
-            (
-                (State::ReadSubBlockType, Input::Character),
-                State::ReadSubBlockType,
-            ),
-            (
-                (State::ReadSubBlockType, Input::Dot),
-                State::EndSubBlockType,
-            ),
-            (
-                (State::ReadSubBlockType, Input::Digit),
-                State::EndSubBlockType,
-            ),
-            (
-                (State::ReadSubBlockType, Input::Colon),
-                State::EndSubBlockType,
-            ),
-            (
-                (State::ReadSubBlockType, Input::Tilt),
-                State::EndSubBlockType,
-            ),
-            // initial white spaces
-            (
-                (State::ReadSubBlockType, Input::Whitespace),
-                State::EndSubBlockType,
-            ),
-            (
-                (State::ReadSubBlockType, Input::NewLine),
-                State::EndSubBlockType,
-            ),
-            // delimeters
-            (
-                (State::ReadSubBlockType, Input::LeftCurlyBrace),
-                State::EndSubBlockType,
-            ),
-            (
-                (State::ReadSubBlockType, Input::RightCurlyBrace),
-                State::EndSubBlockType,
-            ),
-        ];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
-        insert_read_sub_block_type_states(&mut table);
-        verify_result(&table, expected);
-    }
-
-    #[test]
-    fn should_insert_expect_follow_up_colon_states() {
-        let expected = vec![(
-            // single valid state, everything else causes an error
-            (State::ExpectFollowUpColon, Input::Colon),
-            State::ExpectIdentifier,
-        )];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
-        insert_expect_follow_up_colon_states(&mut table);
-        verify_result(&table, expected);
-    }
-
-    #[test]
-    fn should_insert_expect_identifier_states() {
-        let expected = vec![(
-            // single valid state, everything else causes an error
-            (State::ExpectIdentifier, Input::Character),
-            State::ReadIdentifier,
-        )];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
-        insert_expect_identifier_states(&mut table);
-        verify_result(&table, expected);
+    fn should_insert_read_special_identifier_states() {
+        let mut states: Vec<((State, Input), State)> = Vec::new();
+        let state = State::ReadSpecialIdentifier;
+        for input in Input::iterator() {
+            let next_state = match input {
+                Input::NewLine => State::EndSpecialIdentifier,
+                Input::Whitespace => State::ReadSpecialIdentifier,
+                Input::Character => State::ReadSpecialIdentifier,
+                Input::Underscore => State::ReadSpecialIdentifier,
+                Input::Delimeter => State::EndSpecialIdentifier,
+                Input::Dot => State::EndSpecialIdentifier,
+                Input::Digit => State::ReadSpecialIdentifier,
+                Input::DoubleQuote => State::EndSpecialIdentifier,
+                Input::Phiten => State::ReadSpecialIdentifier,
+                Input::Backslash => State::EndSpecialIdentifier,
+                Input::Tilt => State::EndSpecialIdentifier,
+                Input::EOF => State::EndSpecialIdentifier,
+                Input::Other => State::EndSpecialIdentifier,
+            };
+            states.push(((state, *input), next_state));
+        }
+        let mut table = HashMap::new();
+        insert_read_special_identifier_states(&mut table);
+        verify_result(&table, states);
     }
 
     #[test]
     fn should_insert_read_string_states() {
-        let expected = vec![
-            ((State::ReadString, Input::Character), State::ReadString),
-            ((State::ReadString, Input::Digit), State::ReadString),
-            (
-                (State::ReadString, Input::LeftCurlyBrace),
-                State::ReadString,
-            ),
-            (
-                (State::ReadString, Input::RightCurlyBrace),
-                State::ReadString,
-            ),
-            ((State::ReadString, Input::Whitespace), State::ReadString),
-            ((State::ReadString, Input::NewLine), State::ReadString),
-            ((State::ReadString, Input::Tilt), State::EndString),
-            ((State::ReadString, Input::Colon), State::ReadString),
-            ((State::ReadString, Input::Dot), State::ReadString),
-            ((State::ReadString, Input::Other), State::ReadString),
-            (
-                (State::ReadString, Input::Backslash),
-                State::ReadEscapedCharacter,
-            ),
-        ];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
+        let mut states: Vec<((State, Input), State)> = Vec::new();
+        let state = State::ReadString;
+        for input in Input::iterator() {
+            let next_state = match input {
+                Input::NewLine => State::ReadString,
+                Input::Whitespace => State::ReadString,
+                Input::Character => State::ReadString,
+                Input::Underscore => State::ReadString,
+                Input::Delimeter => State::ReadString,
+                Input::Dot => State::ReadString,
+                Input::Digit => State::ReadString,
+                Input::DoubleQuote => State::ReadString,
+                Input::Phiten => State::ReadString,
+                Input::Backslash => State::ReadEscapedCharacter,
+                Input::Tilt => State::EndString,
+                Input::EOF => State::EndString,
+                Input::Other => State::ReadString,
+            };
+            states.push(((state, *input), next_state));
+        }
+        let mut table = HashMap::new();
         insert_read_string_states(&mut table);
-        verify_result(&table, expected);
+        verify_result(&table, states);
     }
 
     #[test]
     fn should_insert_read_escaped_character_states() {
-        let expected = vec![
-            (
-                (State::ReadEscapedCharacter, Input::Character),
-                State::ReadString,
-            ),
-            ((State::ReadEscapedCharacter, Input::Dot), State::ReadString),
-            (
-                (State::ReadEscapedCharacter, Input::Digit),
-                State::ReadString,
-            ),
-            (
-                (State::ReadEscapedCharacter, Input::Colon),
-                State::ReadString,
-            ),
-            (
-                (State::ReadEscapedCharacter, Input::Tilt),
-                State::ReadString,
-            ),
-            // initial white spaces
-            (
-                (State::ReadEscapedCharacter, Input::Whitespace),
-                State::ReadString,
-            ),
-            (
-                (State::ReadEscapedCharacter, Input::NewLine),
-                State::ReadString,
-            ),
-            // delimeters
-            (
-                (State::ReadEscapedCharacter, Input::LeftCurlyBrace),
-                State::ReadString,
-            ),
-            (
-                (State::ReadEscapedCharacter, Input::RightCurlyBrace),
-                State::ReadString,
-            ),
-            (
-                (State::ReadEscapedCharacter, Input::Backslash),
-                State::ReadString,
-            ),
-            (
-                (State::ReadEscapedCharacter, Input::Other),
-                State::ReadString,
-            ),
-        ];
-        let mut table: HashMap<(State, Input), State> = HashMap::new();
+        let mut states: Vec<((State, Input), State)> = Vec::new();
+        let state = State::ReadEscapedCharacter;
+        for input in Input::iterator() {
+            let next_state = match input {
+                Input::NewLine => State::ReadString,
+                Input::Whitespace => State::ReadString,
+                Input::Character => State::ReadString,
+                Input::Underscore => State::ReadString,
+                Input::Delimeter => State::ReadString,
+                Input::Dot => State::ReadString,
+                Input::Digit => State::ReadString,
+                Input::DoubleQuote => State::ReadString,
+                Input::Phiten => State::ReadString,
+                Input::Backslash => State::ReadString,
+                Input::Tilt => State::ReadString,
+                Input::EOF => State::EndString,
+                Input::Other => State::ReadString,
+            };
+            states.push(((state, *input), next_state));
+        }
+        let mut table = HashMap::new();
         insert_read_escaped_character_states(&mut table);
-        verify_result(&table, expected);
+        verify_result(&table, states);
+    }
+
+    #[test]
+    fn should_insert_read_sub_block_type_states() {
+        let mut states: Vec<((State, Input), State)> = Vec::new();
+        let state = State::ReadSubBlockType;
+        for input in Input::iterator() {
+            let next_state = match input {
+                Input::NewLine => State::EndSubBlockType,
+                Input::Whitespace => State::EndSubBlockType,
+                Input::Character => State::ReadSubBlockType,
+                Input::Underscore => State::ReadSubBlockType,
+                Input::Delimeter => State::EndSubBlockType,
+                Input::Dot => State::EndSubBlockType,
+                Input::Digit => State::ReadSubBlockType,
+                Input::DoubleQuote => State::EndSubBlockType,
+                Input::Phiten => State::ReadSubBlockType,
+                Input::Backslash => State::EndSubBlockType,
+                Input::Tilt => State::EndSubBlockType,
+                Input::EOF => State::EndSubBlockType,
+                Input::Other => State::EndSubBlockType,
+            };
+            states.push(((state, *input), next_state));
+        }
+        let mut table = HashMap::new();
+        insert_read_sub_block_type_states(&mut table);
+        verify_result(&table, states);
     }
 }
