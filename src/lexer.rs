@@ -1,5 +1,4 @@
-use std::str::Chars;
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, str::Chars};
 
 use crate::transition_table::{
     build_transition_table, char_to_input, is_transitional_state, Input, State,
@@ -7,55 +6,24 @@ use crate::transition_table::{
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    /// Represents illegal characters that shouldn't be in the .hermes syntax
-    Illegal,
-    /// Defines a named block.
-    BlockIdentifier(String),
-    RequestBlock,
-    BodyBlock,
-    HeadersBlock,
-    QueriesBlock,
-    EnvironmentBlock,
-    VariablesBlock,
-    CollectionBlock,
-    FolderBlock,
-    BlockSubType(String),
-    /// Typical identifier in any language. This will mostly just be
-    /// block names that are used to reference to defined blocks or for reserved keywords.
-    ///
-    /// Keep in mind that identifier keywords only appear at the beginning of any line in a block.
-    ///
-    /// Available identifier keywords:
-    /// type - type of hermes file, usually defined in a metadata block
-    /// name - the type of a collection, request, or folder
-    /// text - text type of multipart form data field
-    /// file - file type of multipart form data field
-    /// environment - use an enviroment
-    /// add - add a single request
-    /// include - include all requests from a given path
+    BlockType(String),
+    SubBlockType(String),
     Identifier(String),
-    /// Refers to any raw value read from a hermes file. For example, the JSON body string would be
-    /// a raw value, as well as the value of a query parameter.
+    Digit(u8),
     StringValue(String),
-    /// Some blocks such as headers, queries, form-urlencoded, and mutipart-form can have enabled
-    /// fields which are included in the request.
-    StateEnabled,
-    /// Some blocks such as headers, queries, form-urlencoded, and mutipart-form can have disabled
-    /// fields which are included in the request.
-    StateDisabled,
-    CurlyLeft,
-    CurlyRight,
+    Delimeter(char),
+    AsKeyword,
 }
 
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     input: &'a str,
     chars: Chars<'a>,
-    current_char: Option<char>,
-    lookahead_char: Option<char>,
+    current_char: char,
+    lookahead_char: char,
     start_index: usize,
     end_index: usize,
-    transition_table: HashMap<(State, Input), State>,
+    transitional_table: HashMap<(State, Input), State>,
 }
 
 impl<'a> Lexer<'a> {
@@ -63,11 +31,11 @@ impl<'a> Lexer<'a> {
         let mut lexer = Lexer {
             input,
             chars: input.chars(),
-            current_char: None,
-            lookahead_char: None,
+            current_char: '\0',
+            lookahead_char: '\0',
             start_index: 0,
             end_index: 0,
-            transition_table: build_transition_table(),
+            transitional_table: build_transition_table(),
         };
         // initialize the lexer character position
         lexer.advance();
@@ -80,33 +48,67 @@ impl<'a> Lexer<'a> {
 
     /// Grab the next token that can be identified in the input.
     pub fn next_token(&mut self) -> Option<Token> {
-        if self.current_char.is_none() {
+        if self.current_char == '\0' {
             return None;
         }
+
         self.skip_whitespaces_or_newline();
 
-        let mut ch = self.current_char.unwrap();
+        let mut ch = self.current_char;
         let mut input = char_to_input(ch);
         let mut state = self.get_next_state(State::Start, input);
 
+        println!("=> Initial");
+        println!("=> ch: '{}', state: {:?}, input: {:?}", ch, state, input);
+
         while is_transitional_state(state) {
+            // println!("ch: {:?}, input: {:?}, state: {:?}", ch, input, state);
             self.advance();
-            if self.current_char.is_some() {
-                ch = self.current_char.unwrap();
-                input = char_to_input(ch);
-                state = self.get_next_state(state, input);
-            } else {
-                // EOF
-                state = State::EOF;
-            }
+            ch = self.current_char;
+            input = char_to_input(ch);
+            state = self.get_next_state(state, input);
         }
 
-        println!(
-            "literal: {:?}",
-            self.input.get(self.start_index..self.end_index - 1)
-        );
-
-        None
+        match state {
+            State::EndIdentifier | State::EndSubBlockType => {
+                let slice = self.get_literal(self.start_index, self.end_index - 1);
+                self.reset_slice_pointers();
+                Some(self.match_ident_to_keyword(slice))
+            }
+            State::EndDelimeter => {
+                // have to advanced once since single end states do not trigger the while loop
+                self.advance();
+                self.reset_slice_pointers();
+                // println!("delimeter: {}", ch);
+                Some(Token::Delimeter(ch))
+            }
+            State::EndDigit => {
+                let digit = if ch == '1' { 1 } else { 0 };
+                self.advance();
+                self.reset_slice_pointers();
+                Some(Token::Digit(digit))
+            }
+            State::EndString => {
+                let slice = self.get_literal(self.start_index + 1, self.end_index - 1);
+                // ended on a tilt, need to advance
+                if ch == '`' {
+                    self.advance();
+                }
+                self.reset_slice_pointers();
+                Some(Token::StringValue(slice))
+            }
+            State::EndSpecialIdentifier => {
+                let slice = self.get_literal(self.start_index + 1, self.end_index - 1);
+                // ended on a double quote, need to advance to avoid infinite special identifier
+                // read
+                if ch == '"' {
+                    self.advance();
+                }
+                self.reset_slice_pointers();
+                Some(Token::Identifier(slice))
+            }
+            _ => None,
+        }
     }
 
     /// Move onto the next character, may be None.
@@ -114,34 +116,26 @@ impl<'a> Lexer<'a> {
         // move to end index to later grab the desired input string
         self.end_index += 1;
         self.current_char = self.lookahead_char;
-        self.lookahead_char = self.chars.next();
+        self.lookahead_char = match self.chars.next() {
+            Some(ch) => ch,
+            None => '\0',
+        };
     }
 
     /// Skip all characters that have the White_Space property. Read Rust documentation for more
     /// information.
     fn skip_whitespaces_or_newline(&mut self) {
-        while let Some(ch) = self.current_char {
-            if ch.is_whitespace() || ch == '\n' {
-                self.advance();
-            } else {
-                break;
-            }
+        while self.current_char.is_whitespace() || self.current_char == '\n' {
+            self.advance();
         }
         // set the starting pointer to the end now after skipping through whitespaces and newlines.
         self.reset_slice_pointers();
     }
 
-    fn get_next_state(&self, state: State, input: Input) -> State {
-        match self.transition_table.get(&(state, input)) {
-            Some(s) => *s,
-            None => State::Error,
-        }
-    }
-
-    fn get_literal(&self, s: usize, e: usize) -> &str {
+    fn get_literal(&mut self, s: usize, e: usize) -> String {
         let slice = match self.input.get(s..e) {
-            Some(s) => s,
-            None => "",
+            Some(s) => String::from(s),
+            None => String::new(),
         };
         slice
     }
@@ -150,17 +144,25 @@ impl<'a> Lexer<'a> {
         self.start_index = self.end_index - 1;
     }
 
-    fn match_identifier_to_keyword(&self, identifier: String) -> Token {
-        match identifier.as_str() {
-            "request" => Token::RequestBlock,
-            "collection" => Token::CollectionBlock,
-            "headers" => Token::HeadersBlock,
-            "queries" => Token::QueriesBlock,
-            "environment" => Token::EnvironmentBlock,
-            "variables" => Token::VariablesBlock,
-            "body" => Token::BodyBlock,
-            "folder" => Token::FolderBlock,
-            _ => Token::Identifier(identifier),
+    fn get_next_state(&self, current_state: State, input: Input) -> State {
+        match self.transitional_table.get(&(current_state, input)) {
+            Some(new_state) => *new_state,
+            None => State::Error,
+        }
+    }
+
+    /// Tries to match the given identifier to a keyword (block type, sub block type, and reserved
+    /// keywords). If none is matched, it returns an Identifier token.
+    fn match_ident_to_keyword(&self, ident: String) -> Token {
+        match ident.as_str() {
+            "collection" | "request" | "environment" | "body" | "headers" | "queries" => {
+                Token::BlockType(ident)
+            }
+            "as" => Token::AsKeyword,
+            ".json" | ".text" | ".form-urlencoded" | ".multipart-form" => {
+                Token::SubBlockType(ident)
+            }
+            _ => Token::Identifier(ident),
         }
     }
 }
