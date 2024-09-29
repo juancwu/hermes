@@ -187,15 +187,15 @@ fn insert_read_special_identifier_states(table: &mut HashMap<(State, Input), Sta
             Input::Whitespace => State::ReadSpecialIdentifier,
             Input::Character => State::ReadSpecialIdentifier,
             Input::Underscore => State::ReadSpecialIdentifier,
-            Input::Delimeter => State::EndSpecialIdentifier,
-            Input::Dot => State::EndSpecialIdentifier,
+            Input::Delimeter => State::ReadSpecialIdentifier,
+            Input::Dot => State::ReadSpecialIdentifier,
             Input::Digit => State::ReadSpecialIdentifier,
             Input::DoubleQuote => State::EndSpecialIdentifier,
             Input::Phiten => State::ReadSpecialIdentifier,
-            Input::Backslash => State::EndSpecialIdentifier,
-            Input::Tilt => State::EndSpecialIdentifier,
+            Input::Backslash => State::ReadSpecialIdentifier,
+            Input::Tilt => State::ReadSpecialIdentifier,
             Input::EOF => State::EndSpecialIdentifier,
-            Input::Other => State::EndSpecialIdentifier,
+            Input::Other => State::ReadSpecialIdentifier,
         };
         table.insert((State::ReadSpecialIdentifier, *input), next_state);
     }
@@ -384,15 +384,15 @@ mod tests {
                 Input::Whitespace => State::ReadSpecialIdentifier,
                 Input::Character => State::ReadSpecialIdentifier,
                 Input::Underscore => State::ReadSpecialIdentifier,
-                Input::Delimeter => State::EndSpecialIdentifier,
-                Input::Dot => State::EndSpecialIdentifier,
+                Input::Delimeter => State::ReadSpecialIdentifier,
+                Input::Dot => State::ReadSpecialIdentifier,
                 Input::Digit => State::ReadSpecialIdentifier,
                 Input::DoubleQuote => State::EndSpecialIdentifier,
                 Input::Phiten => State::ReadSpecialIdentifier,
-                Input::Backslash => State::EndSpecialIdentifier,
-                Input::Tilt => State::EndSpecialIdentifier,
+                Input::Backslash => State::ReadSpecialIdentifier,
+                Input::Tilt => State::ReadSpecialIdentifier,
                 Input::EOF => State::EndSpecialIdentifier,
-                Input::Other => State::EndSpecialIdentifier,
+                Input::Other => State::ReadSpecialIdentifier,
             };
             states.push(((state, *input), next_state));
         }
