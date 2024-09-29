@@ -58,8 +58,8 @@ impl<'a> Lexer<'a> {
         let mut input = char_to_input(ch);
         let mut state = self.get_next_state(State::Start, input);
 
-        println!("=> Initial");
-        println!("=> ch: '{}', state: {:?}, input: {:?}", ch, state, input);
+        // println!("=> Initial");
+        // println!("=> ch: '{}', state: {:?}, input: {:?}", ch, state, input);
 
         while is_transitional_state(state) {
             // println!("ch: {:?}, input: {:?}, state: {:?}", ch, input, state);
