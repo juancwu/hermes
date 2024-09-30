@@ -1,4 +1,4 @@
-// use std::io;
+use std::io;
 
 mod api;
 mod app;
@@ -17,4 +17,51 @@ mod tui;
 //     app_result
 // }
 
-fn main() {}
+fn main() {
+    // let mut lexer = parse::lexer::Lexer::new(
+    //     r#"
+    // collection::C {
+    //     name "my collection"
+    //     include "."
+    //     environment 0 dev
+    // }
+    //
+    // environment::dev {
+    //     URL "/url"
+    // }
+    // "#,
+    // );
+    // let mut parser = parse::collection::CollectionParser::default();
+    // let collection = parser.parse(&mut lexer);
+    // println!("{:?}", collection);
+    // let tokens = parser::parse::parse(
+    //     r#"
+    // metadata::m {
+    //     name 0 "some value and escaped \n \""
+    //     some-other2123_?dksj
+    // }
+    // "#,
+    // );
+    // println!("{:?}", tokens);
+    // let mut terminal = tui:: lginit()?;
+    // let app_result = app::App::default().run(&mut terminal);
+    // tui::restore()?;
+    // app_result
+    //
+    // let input = r#"
+    //     body.json::json {
+    //         value 1 `{
+    //             "name": {
+    //                 "first": "Juan",
+    //                 "last": "Wu"
+    //             }
+    //         }`
+    //     }
+    // "#;
+    // let input = r#"body.json as json {name_2 0 `some value @
+    //
+    //
+    // \``}collection as c {"kdjaskjd kkdjas d 0 k}"""#;
+    let dir = "./examples";
+    parser::parse(dir);
+}

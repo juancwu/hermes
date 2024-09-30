@@ -1,0 +1,8 @@
+collection {
+    name 1 `My Collection`
+    environment 1 collection-env
+}
+
+environment as collection-env {
+    TEST 1 `ENV`
+}
